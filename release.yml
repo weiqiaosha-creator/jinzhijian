@@ -1,0 +1,80 @@
+name: Release
+
+# 触发方式：
+#   1) 推送一个形如 v2.0.3 的 tag 时自动打包并发布 GitHub Release
+#   2) 也可工作流手动触发（Actions 页面 → Run workflow），需手动填版本号
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release 版本号（如 2.0.3），留空则从 stable/manifest.json 读取'
+        required: false
+        default: ''
+      draft:
+        description: '发布为草稿（不公开）'
+        type: boolean
+        default: false
+
+jobs:
+  build-release:
+    name: Build & Release
+    # 仓库里 public 公开，可直接用 ubuntu；若未来规避 Windows 依赖已足够。
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version from manifest.json
+        id: version
+        shell: bash
+        run: |
+          # 手动触发填了版本则优先用；否则读 stable/manifest.json
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "ver=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VER=$(python3 -c "import json;print(json.load(open('stable/manifest.json'))['version'])")
+            echo "ver=${VER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check wechat-common.js exists at repo root
+        # stable/manifest 引用根目录 wechat-common.js，确认存在
+        run: test -f stable/manifest.json && echo "manifest present"
+
+      - name: Zip extension (stable/)
+        id: build
+        shell: bash
+        run: |
+          TMP="releasebuild"
+          mkdir -p "$TMP"
+          # 只放入发布所需的扩展文件（与 pack-zip.ps1 保持一致）
+          for f in \
+            app.js background.js content.js converter.js index.html \
+            jszip.min.js mammoth.browser.min.js manifest.json markdown-it.min.js \
+            popup.html popup.js server.js themes.js wechat-common.js LICENSE
+          do
+            cp "stable/$f" "$TMP/"
+          done
+          ZIP="jinzhijian-v${{ steps.version.outputs.ver }}.zip"
+          # 用 python 原生打包，避免 zip 里的 .py 干扰，通用可靠
+          (cd "$TMP" && python3 -m zipfile -c "../$ZIP" .)
+          echo "Built: $ZIP"
+          echo "asset_name=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "asset_path=$ZIP" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release (tag or manual)
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          # 手动触发（无 tag）时用 generated 名，保证可用
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.version.outputs.ver) }}
+          name: JinZhiJian v${{ steps.version.outputs.ver }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          generate_release_notes: true
+          files: |
+            ${{ format('jinzhijian-v{0}.zip', steps.version.outputs.ver) }}
