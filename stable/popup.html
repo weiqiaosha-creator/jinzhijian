@@ -1,0 +1,35 @@
+ 1→<!DOCTYPE html>
+ 2→<html lang="zh-CN">
+ 3→<head>
+ 4→  <meta charset="utf-8" />
+ 5→  <style>
+ 6→    body { width: 300px; padding: 14px; font-family: -apple-system,"PingFang SC",sans-serif; font-size: 13px; color:#2b3a4a; }
+ 7→    h3 { margin: 0 0 10px; font-size: 14px; color:#00A86B; display:flex; justify-content:space-between; align-items:center; }
+ 8→    .ver { font-size: 11px; color:#8a93a0; font-weight:400; }
+ 9→    label { display:block; color:#8a93a0; margin: 8px 0 4px; }
+10→    input { width: 100%; padding: 7px; border: 1px solid #e3e6ea; border-radius: 7px; box-sizing: border-box; }
+11→    .row { display:flex; gap:8px; margin-top:12px; }
+12→    button { flex:1; padding: 8px; border: none; border-radius: 7px; background:#00A86B; color:#fff; font-weight: 600; cursor: pointer; font-size:13px; }
+13→    button.ghost { background:#eef1f5; color:#2b3a4a; }
+14→    .hint { color:#8a93a0; font-size: 11px; line-height: 1.7; margin-top: 10px; }
+15→    .sponsor { color:#8a93a0; font-size: 11px; line-height: 1.7; margin-top: 8px; }
+16→    .sponsor a { color:#00A86B; }
+17→    #st { font-size: 12px; margin-top: 8px; min-height: 14px; }
+18→  </style>
+19→</head>
+20→<body>
+21→  <h3>瑾之笺 · 凭证 <span class="ver" id="ver">v2.0.0</span></h3>
+22→  <label>AppID</label>
+23→  <input id="appid" placeholder="公众号 AppID" />
+24→  <label>AppSecret</label>
+25→  <input id="secret" type="password" placeholder="AppSecret" />
+26→  <div class="row">
+27→    <button id="save">保存</button>
+28→    <button id="test" class="ghost">测试连接</button>
+29→  </div>
+30→  <div id="st"></div>
+31→  <p class="hint">凭证仅存浏览器本地 storage，不上传任何第三方。推送前需把本机出口 IP 加入公众号 IP 白名单（开发→基本配置）。<br><b>个人订阅号</b>无群发 API：在编辑器页右下角面板选「个人号」并填定时时间，本插件会在到点自动打开后台发表（需保持登录）。</p>
+32→  <p class="sponsor">开源免费 · 赞助持续维护：<a href="https://afdian.com/" target="_blank">爱发电</a> ｜ <a href="https://github.com/" target="_blank">GitHub</a></p>
+33→  <script src="popup.js"></script>
+34→</body>
+35→</html>

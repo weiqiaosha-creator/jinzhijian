@@ -1,0 +1,146 @@
+# THIRD PARTY LICENSES
+
+本仓库「瑾之笺」除自研代码（独立版权）外，使用了以下第三方开源库。
+每一种库的完整许可证全文均已随其发行版注明，此处仅为所需的许可证声明与合规说明。
+本仓库按各库允许的许可证使用；使用声明及链接如下，供核查。
+
+---
+
+## 1. markdown-it
+
+- 用途：Markdown → HTML 渲染
+- 文件：`stable/markdown-it.min.js`、`markdown-it.min.js`
+- 许可证：**MIT License**
+- 版权方 / Copyright：
+  Copyright (c) 2014 Vitaly Puzrin
+- 说明：MIT 要求保留上述版权声明与许可文本。
+
+### MIT License (markdown-it)
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2014 Vitaly Puzrin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+---
+
+## 2. mammoth (mammoth.browser)
+
+- 用途：DOCX → HTML 转换
+- 文件：`stable/mammoth.browser.min.js`、`mammoth.browser.min.js`
+- 许可证：**BSD-2-Clause**
+- 版权方 / Copyright：
+  Michael Williamson (mwilliamson)
+  mammoth — docx to HTML converter
+  项目主页：https://github.com/mwilliamson/mammoth.js
+
+### BSD 2-Clause License (mammoth)
+
+```
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+Copyright (c) Michael Williamson (mwilliamson). All rights reserved.
+(mammoth project)
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+```
+
+---
+
+## 3. JSZip
+
+- 用途：PPTX / ZIP 解压解析
+- 文件：`stable/jszip.min.js`、`jszip.min.js`
+- 许可证：**MIT OR GPL-3.0**（双许可；本仓库依据并遵循其 **MIT** 条款使用）
+- 版权方 / Copyright：
+  JSZip is licensed under the MIT license or GPLv3.
+  作者 / Project：Stuk（Jean-Baptiste "Stuk" Romain）— https://stuk.github.io/jszip/
+- JSZip 还使用了 **pako**（MIT License）：
+  https://github.com/nodeca/pako
+
+### 关于使用许可的选择说明
+
+JSZip 官方声明如下：
+```
+Dual licenced under the MIT license or GPLv3.
+See https://raw.github.com/Stuk/jszip/main/LICENSE.markdown.
+
+JSZip uses the library pako released under the MIT license :
+https://github.com/nodeca/pako/blob/main/LICENSE
+```
+本仓库选择以 **MIT 条款**使用 JSZip，符合其双许可中任一生效的授权方式。
+
+### MIT License (JSZip)
+
+```
+Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger,
+Antonio Afonso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+---
+
+## 合规自查记录
+
+| 库 | 许可证 | 本仓库是否保留版权声明 | 是否允许再分发/修改 | 是否允许闭源商用 |
+|---|---|---|---|---|
+| markdown-it | MIT | 是 | 是 | 是 |
+| mammoth | BSD-2-Clause | 是 | 是 | 是 |
+| JSZip | MIT / GPL-3.0 | 是（选用 MIT） | 是 | 是（MIT 条款下） |
+
+> 说明：以上第三方库均为各自的版权方所有，其许可证不因并入本仓库而发生改变。
+> 本仓库不对第三方库的版权与责任负责，各库按其自身许可条款使用。

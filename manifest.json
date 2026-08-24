@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "瑾之笺",
+  "version": "2.0.0",
+  "description": "瑾之笺：多格式（md/docx/pptx）拖入公众号后台、模板筛选、GIF 动态图、免费图库、推草稿与定时群发。独立版权，基于 MIT/BSD 开源库 clean-room 实现。",
+  "permissions": ["storage", "activeTab", "alarms", "notifications", "tabs"],
+  "host_permissions": [
+    "https://mp.weixin.qq.com/*",
+    "https://api.weixin.qq.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "瑾之笺",
+    "default_icon": {
+      "16": "icons/icon.jpg",
+      "48": "icons/icon.jpg",
+      "128": "icons/icon.jpg"
+    }
+  },
+  "icons": {
+    "16": "icons/icon.jpg",
+    "48": "icons/icon.jpg",
+    "128": "icons/icon.jpg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mp.weixin.qq.com/*"],
+      "js": [
+        "markdown-it.min.js",
+        "mammoth.browser.min.js",
+        "jszip.min.js",
+        "wechat-common.js",
+        "themes.js",
+        "converter.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["markdown-it.min.js", "mammoth.browser.min.js", "jszip.min.js", "wechat-common.js", "themes.js", "converter.js"],
+      "matches": ["https://mp.weixin.qq.com/*"]
+    }
+  ]
+}
