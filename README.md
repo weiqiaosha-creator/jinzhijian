@@ -90,8 +90,8 @@
   <details open>
     <summary><b>微信赞赏（长按或扫码，金额随意，感谢支持 ✨）</b></summary>
     <br>
-    <img src="images/wechat-reward.jpg" alt="瑾之笺·微信赞赏码" width="260" height="260" style="border-radius:10px;border:1px solid #e3e6ea;"/>
-    <p><i>（若图片未显示：请将你的赞赏码保存为 <code>images/wechat-reward.jpg</code> 后，在本仓库 <b>images/</b> 目录替换占位即可）</i></p>
+    <img src="images/wechat-reward.png" alt="瑾之笺·微信赞赏码" width="260" height="260" style="border-radius:10px;border:1px solid #e3e6ea;"/>
+    <p><i>（若图片未显示：请将你的赞赏码保存为 <code>images/wechat-reward.png</code> 后，在本仓库 <b>images/</b> 目录替换占位即可）</i></p>
   </details>
 </div>
 
