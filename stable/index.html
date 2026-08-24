@@ -1,141 +1,173 @@
-  1→<!DOCTYPE html>
-  2→<html lang="zh-CN">
-  3→<head>
-  4→  <meta charset="utf-8" />
-  5→  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  6→  <title>瑾之笺 · 多格式公众号排版推送</title>
-  7→  <style>
-  8→    :root { --bg:#f5f6f8; --card:#fff; --line:#e3e6ea; --pri:#00A86B; --pri-dark:#008f59; --txt:#2b3a4a; --mut:#8a93a0; }
-  9→    * { box-sizing: border-box; }
- 10→    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif; background:var(--bg); color:var(--txt); font-size:14px; }
- 11→    header { background:#fff; border-bottom:1px solid var(--line); padding:14px 22px; display:flex; align-items:center; gap:12px; }
- 12→    header h1 { font-size:16px; margin:0; font-weight:700; color:var(--pri); }
- 13→    header .tag { font-size:12px; color:var(--mut); }
- 14→    .wrap { max-width:1120px; margin:18px auto; padding:0 18px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
- 15→    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
- 16→    .col { display:flex; flex-direction:column; gap:16px; }
- 17→    .drop { border:2px dashed #c4ccd6; border-radius:10px; padding:30px 16px; text-align:center; color:var(--mut); cursor:pointer; transition:.15s; }
- 18→    .drop.hot { border-color:var(--pri); background:#e8f9f2; color:var(--pri); }
- 19→    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
- 20→    label { font-size:13px; color:var(--mut); }
- 21→    input[type=text], input[type=password], input[type=datetime-local], select, textarea { padding:7px 9px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:#fff; color:var(--txt); }
- 22→    input[type=text], input[type=password] { min-width:200px; }
- 23→    button { border:none; border-radius:7px; padding:8px 14px; font-size:13px; cursor:pointer; background:var(--pri); color:#fff; font-weight:600; }
- 24→    button.ghost { background:#eef1f5; color:var(--txt); }
- 25→    button:disabled { opacity:.5; cursor:not-allowed; }
- 26→    .files { list-style:none; margin:10px 0 0; padding:0; }
- 27→    .files li { display:flex; justify-content:space-between; gap:8px; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px; }
- 28→    .ok { color:#1a9e57; } .err { color:#e03131; } .wait { color:var(--mut); }
- 29→    iframe { width:100%; height:520px; border:1px solid var(--line); border-radius:8px; background:#fff; }
- 30→    .hint { font-size:12px; color:var(--mut); line-height:1.7; }
- 31→    .status { font-size:13px; margin-top:8px; min-height:18px; }
- 32→    h3 { font-size:14px; margin:0 0 10px; }
- 33→    .mut { color:var(--mut); }
- 34→    details { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
- 35→    details summary { cursor:pointer; font-weight:700; font-size:14px; }
- 36→    .imgsearch { width:100%; margin:8px 0; display:flex; gap:8px; }
- 37→    .lib { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
- 38→    .lib a { display:block; padding:8px 10px; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:var(--txt); font-size:12px; }
- 39→    .lib a:hover { border-color:var(--pri); }
- 40→    .lib a b { color:var(--pri); }
- 41→    .lib a span { display:block; color:var(--mut); margin-top:2px; }
- 42→    .account { display:flex; gap:14px; align-items:center; }
- 43→    .sponsor { font-size:12px; color:var(--mut); line-height:1.8; }
- 44→    .sponsor a { color:var(--pri); }
- 45→  </style>
- 46→</head>
- 47→<body>
- 48→  <header>
- 49→    <h1>瑾之笺</h1>
- 50→    <span class="tag">多格式拖入 · 模板筛选 · 推草稿 / 定时群发（独立版权）</span>
- 51→  </header>
- 52→
- 53→  <div class="wrap">
- 54→    <div class="col">
- 55→      <div class="card">
- 56→        <h3>① 拖入文件</h3>
- 57→        <div class="drop" id="drop">把 .md / .docx / .pptx 拖到这里，或点击选择<br><span class="mut">（.doc 请先另存为 .docx；支持 GIF 动态图）</span></div>
- 58→        <input type="file" id="file" multiple accept=".md,.markdown,.txt,.docx,.pptx,.doc,.gif" hidden />
- 59→        <ul class="files" id="fileList"></ul>
- 60→      </div>
- 61→
- 62→      <div class="card">
- 63→        <h3>② 设置</h3>
- 64→        <div class="row" style="margin-bottom:10px;">
- 65→          <label>模板</label>
- 66→          <select id="theme"></select>
- 67→        </div>
- 68→        <div class="row" style="margin-bottom:10px;">
- 69→          <label>标题</label>
- 70→          <input type="text" id="title" placeholder="文章标题（也可留空用文件名）" />
- 71→        </div>
- 72→        <div class="row" style="margin-bottom:10px;">
- 73→          <label>作者</label>
- 74→          <input type="text" id="author" placeholder="留空或填笔名" />
- 75→        </div>
- 76→        <div class="row" style="margin-bottom:10px;">
- 77→          <label>账号类型</label>
- 78→          <div class="account">
- 79→            <label><input type="radio" name="acct" id="acct-api" checked /> 认证号（走 API 定时群发）</label>
- 80→            <label><input type="radio" name="acct" id="acct-personal" /> 个人号（走插件自动发表）</label>
- 81→          </div>
- 82→        </div>
- 83→        <div class="row" style="margin-bottom:10px;">
- 84→          <label>定时</label>
- 85→          <input type="datetime-local" id="schedule" />
- 86→          <span class="mut">留空=仅推草稿，由你在后台发布</span>
- 87→        </div>
- 88→        <div class="row" id="cred-row">
- 89→          <label>AppID</label>
- 90→          <input type="text" id="appid" placeholder="公众号 AppID" />
- 91→          <label>Secret</label>
- 92→          <input type="password" id="secret" placeholder="AppSecret" />
- 93→        </div>
- 94→        <p class="hint">凭证仅存本机 localStorage，经本地服务 server.js 调用微信接口；不写入任何代码或上传第三方。需把本机出口 IP 加入公众号 IP 白名单。</p>
- 95→        <div class="row" style="margin-top:12px;">
- 96→          <button id="copy">复制公众号 HTML</button>
- 97→          <button id="draft" class="ghost">推送到草稿箱</button>
- 98→          <button id="send">定时/立即群发</button>
- 99→        </div>
-100→        <div class="status" id="status"></div>
-101→      </div>
-102→
-103→      <details>
-104→        <summary>③ 免费图库（点击展开，按关键词搜图）</summary>
-105→        <div class="imgsearch">
-106→          <input type="text" id="imgkw" placeholder="关键词，如 医药 / 城市 / 科技" style="flex:1;" />
-107→          <button class="ghost" id="imgsearchBtn">搜索</button>
-108→        </div>
-109→        <div class="lib" id="imglib"></div>
-110→        <p class="hint">动态图请选 GIPHY / Tenor；插入时复制图片地址，放进你的 Markdown 里（推送模式会自动上传微信图床保留动画）。各站许可以官网声明为准。</p>
-111→      </details>
-112→    </div>
-113→
-114→    <div class="col">
-115→      <div class="card">
-116→        <h3>④ 实时预览（微信内效果）</h3>
-117→        <iframe id="preview" title="preview"></iframe>
-118→        <p class="hint">预览为微信内联样式渲染效果。复制 HTML 后到公众号后台 Ctrl+V 粘贴即可；或填好凭证点"推送"经 API 入草稿。个人号定时发送请用浏览器插件（已内置个人号自动发表）。</p>
-119→      </div>
-120→
-121→      <details>
-122→        <summary>关于 · 赞助 · 开源</summary>
-123→        <p class="sponsor">
-124→          <b>瑾之笺</b> 是一套独立版权、clean-room 实现的公众号排版发布工具，支持 md/docx/pptx 拖入、数十套可筛选模板、GIF 动态图、免费图库与定时发送。<br>
-125→          · 开源仓库（欢迎 Star / 提 Issue）：<a href="https://github.com/" id="gh" target="_blank">GitHub 待发布</a><br>
-126→          · 赞助支持持续维护：<a href="https://afdian.com/" target="_blank">爱发电 / 赞助</a><br>
-127→          · 商业授权 / 托管定时服务（个人号真·云端定时）：见 README「商业与赞助」一节<br>
-128→          本工具对所有人免费可用；若你的团队需要私有定制或云端托管定时，可联系作者获取商业许可，这也是它持续免费的动力之一。
-129→        </p>
-130→      </details>
-131→    </div>
-132→  </div>
-133→
-134→  <script src="markdown-it.min.js"></script>
-135→  <script src="mammoth.browser.min.js"></script>
-136→  <script src="jszip.min.js"></script>
-137→  <script src="themes.js"></script>
-138→  <script src="converter.js"></script>
-139→  <script src="app.js"></script>
-140→</body>
-141→</html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>瑾之笺·稳定版 · 多格式公众号排版推送</title>
+  <style>
+    :root { --bg:#f5f6f8; --card:#fff; --line:#e3e6ea; --pri:#00A86B; --pri-dark:#008f59; --txt:#2b3a4a; --mut:#8a93a0; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif; background:var(--bg); color:var(--txt); font-size:14px; }
+    header { background:#fff; border-bottom:1px solid var(--line); padding:14px 22px; display:flex; align-items:center; gap:12px; }
+    header h1 { font-size:16px; margin:0; font-weight:700; color:var(--pri); }
+    header .tag { font-size:12px; color:var(--mut); }
+    .wrap { max-width:1120px; margin:18px auto; padding:0 18px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+    .col { display:flex; flex-direction:column; gap:16px; }
+    .drop { border:2px dashed #c4ccd6; border-radius:10px; padding:30px 16px; text-align:center; color:var(--mut); cursor:pointer; transition:.15s; }
+    .drop.hot { border-color:var(--pri); background:#e8f9f2; color:var(--pri); }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    label { font-size:13px; color:var(--mut); }
+    input[type=text], input[type=password], input[type=datetime-local], select, textarea { padding:7px 9px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:#fff; color:var(--txt); }
+    input[type=text], input[type=password] { min-width:200px; }
+    button { border:none; border-radius:7px; padding:8px 14px; font-size:13px; cursor:pointer; background:var(--pri); color:#fff; font-weight:600; }
+    button.ghost { background:#eef1f5; color:var(--txt); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .files { list-style:none; margin:10px 0 0; padding:0; }
+    .files li { display:flex; justify-content:space-between; gap:8px; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px; }
+    .ok { color:#1a9e57; } .err { color:#e03131; } .wait { color:var(--mut); }
+    iframe { width:100%; height:520px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+    .hint { font-size:12px; color:var(--mut); line-height:1.7; }
+    .status { font-size:13px; margin-top:8px; min-height:18px; }
+    h3 { font-size:14px; margin:0 0 10px; }
+    .mut { color:var(--mut); }
+    details { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+    details summary { cursor:pointer; font-weight:700; font-size:14px; }
+    .imgsearch { width:100%; margin:8px 0; display:flex; gap:8px; }
+    .lib { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .lib a { display:block; padding:8px 10px; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:var(--txt); font-size:12px; }
+    .lib a:hover { border-color:var(--pri); }
+    .lib a b { color:var(--pri); }
+    .lib a span { display:block; color:var(--mut); margin-top:2px; }
+    .account { display:flex; gap:14px; align-items:center; }
+    .sponsor { font-size:12px; color:var(--mut); line-height:1.8; }
+    .sponsor a { color:var(--pri); }
+    .sponsor-btn-row { display:flex; gap:10px; margin:12px 0 4px; }
+    .sponsor-btn-row button { flex:1; padding:9px 10px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; border:1px solid transparent; }
+    .btn-wechat { background:#fff; color:#07c160; border:1px solid #07c160 !important; }
+    .btn-wechat:hover { background:#e8f9ef; }
+    .btn-afdian { background:#3B82F6; color:#fff; }
+    .btn-afdian:hover { background:#2563EB; }
+    #reward-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:99999; align-items:center; justify-content:center; flex-direction:column; gap:10px; }
+    #reward-mask.on { display:flex; }
+    #reward-box { background:#fff; padding:20px 20px 14px; border-radius:14px; text-align:center; max-width:94%; }
+    #reward-box h4 { margin:0 0 12px; color:#07c160; font-size:15px; }
+    #reward-box img { width:300px; height:300px; object-fit:contain; border-radius:10px; background:#fafafa; }
+    #reward-box p { margin:10px 0 0; font-size:12px; color:var(--mut); line-height:1.7; }
+    #reward-close { margin-top:6px; padding:7px 16px; border:none; border-radius:7px; background:#eef1f5; color:var(--txt); cursor:pointer; font-size:12px; font-weight:600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>瑾之笺·稳定版</h1>
+    <span class="tag">多格式拖入 · 模板筛选 · 推草稿 / 定时群发（独立版权 · 稳定构建）</span>
+  </header>
+
+  <div class="wrap">
+    <div class="col">
+      <div class="card">
+        <h3>① 拖入文件</h3>
+        <div class="drop" id="drop">把 .md / .docx / .pptx 拖到这里，或点击选择<br><span class="mut">（.doc 请先另存为 .docx；支持 GIF 动态图）</span></div>
+        <input type="file" id="file" multiple accept=".md,.markdown,.txt,.docx,.pptx,.doc,.gif" hidden />
+        <ul class="files" id="fileList"></ul>
+      </div>
+
+      <div class="card">
+        <h3>② 设置</h3>
+        <div class="row" style="margin-bottom:10px;">
+          <label>模板</label>
+          <select id="theme"></select>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+          <label>标题</label>
+          <input type="text" id="title" placeholder="文章标题（也可留空用文件名）" />
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+          <label>作者</label>
+          <input type="text" id="author" placeholder="留空或填笔名" />
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+          <label>账号类型</label>
+          <div class="account">
+            <label><input type="radio" name="acct" id="acct-api" checked /> 认证号（走 API 定时群发）</label>
+            <label><input type="radio" name="acct" id="acct-personal" /> 个人号（走插件自动发表）</label>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:10px;">
+          <label>定时</label>
+          <input type="datetime-local" id="schedule" />
+          <span class="mut">留空=仅推草稿，由你在后台发布</span>
+        </div>
+        <div class="row" id="cred-row">
+          <label>AppID</label>
+          <input type="text" id="appid" placeholder="公众号 AppID" />
+          <label>Secret</label>
+          <input type="password" id="secret" placeholder="AppSecret" />
+        </div>
+        <p class="hint">凭证仅存本机 localStorage，经本地服务 server.js 调用微信接口；不写入任何代码或上传第三方。需把本机出口 IP 加入公众号 IP 白名单。</p>
+        <div class="row" style="margin-top:12px;">
+          <button id="copy">复制公众号 HTML</button>
+          <button id="draft" class="ghost">推送到草稿箱</button>
+          <button id="send">定时/立即群发</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <details>
+        <summary>③ 免费图库（点击展开，按关键词搜图）</summary>
+        <div class="imgsearch">
+          <input type="text" id="imgkw" placeholder="关键词，如 医药 / 城市 / 科技" style="flex:1;" />
+          <button class="ghost" id="imgsearchBtn">搜索</button>
+        </div>
+        <div class="lib" id="imglib"></div>
+        <p class="hint">动态图请选 GIPHY / Tenor；插入时复制图片地址，放进你的 Markdown 里（推送模式会自动上传微信图床保留动画）。各站许可以官网声明为准。</p>
+      </details>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h3>④ 实时预览（微信内效果）</h3>
+        <iframe id="preview" title="preview"></iframe>
+        <p class="hint">预览为微信内联样式渲染效果。复制 HTML 后到公众号后台 Ctrl+V 粘贴即可；或填好凭证点"推送"经 API 入草稿。个人号定时发送请用浏览器插件（已内置个人号自动发表）。</p>
+      </div>
+
+      <details>
+        <summary>关于 · 赞助 · 开源</summary>
+        <p class="sponsor">
+          <b>瑾之笺</b> 是一套独立版权、clean-room 实现的公众号排版发布工具，支持 md/docx/pptx 拖入、数十套可筛选模板、GIF 动态图、免费图库与定时发送。<br>
+          · 开源仓库（欢迎 Star / 提 Issue）：<a href="https://github.com/weiqiaosha-creator/jinzhijian" id="gh" target="_blank">weiqiaosha-creator/jinzhijian</a><br>
+          · 商业授权 / 托管定时服务（个人号真·云端定时）：见 README「商业与赞助」一节<br>
+          本工具对所有人免费可用；若你的团队需要私有定制或云端托管定时，可联系作者获取商业许可，这也是它持续免费的动力之一。
+        </p>
+        <div class="sponsor-btn-row">
+          <button class="btn-wechat" id="btn-wechat">💚 微信赞赏支持作者</button>
+          <button class="btn-afdian" onclick="window.open('https://afdian.com/a/qiaoshan95236','_blank')">💙 爱发电 / 赞助</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="reward-mask" onclick="if(event.target===this)document.getElementById('reward-mask').classList.remove('on')">
+    <div id="reward-box">
+      <h4>感谢支持瑾之笺 · 微信赞赏</h4>
+      <img id="reward-img" src="images/wechat-reward.jpg" alt="微信赞赏码"
+           onerror="this.onerror=null;this.style.border='2px dashed #e3e6ea';this.parentNode.querySelector('p.tip').innerHTML='⚠️ 尚未放入赞赏码图片，<br>请把你保存的赞赏码命名为 <b>images/wechat-reward.jpg</b> 放在瑾之笺 stable/ 目录下后刷新。'" />
+      <p class="tip">长按或扫码支持作者 ✨</p>
+      <button id="reward-close" onclick="document.getElementById('reward-mask').classList.remove('on')">关闭</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('btn-wechat').addEventListener('click', function () {
+      document.getElementById('reward-mask').classList.add('on');
+    });
+  </script>
+
+  <script src="markdown-it.min.js"></script>
+  <script src="mammoth.browser.min.js"></script>
+  <script src="jszip.min.js"></script>
+  <script src="themes.js"></script>
+  <script src="converter.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

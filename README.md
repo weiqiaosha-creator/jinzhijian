@@ -80,8 +80,23 @@
 
 本项目开源免费，欢迎 Star、Issue 反馈与使用。支持作者持续维护：
 
-- 爱发电：<https://afdian.com/>
-- GitHub：<https://github.com/>
+<p align="center">
+  <a href="https://afdian.com/a/qiaoshan95236" target="_blank"><img alt="爱发电" src="https://img.shields.io/badge/%E7%88%B1%E5%8F%91%E7%94%B5-Support%20on%20Afdian-3B82F6?style=for-the-badge&logo=wechat"/></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/weiqiaosha-creator/jinzhijian" target="_blank"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-Star-00A86B?style=for-the-badge&logo=github"/></a>
+</p>
+
+<div align="center">
+  <details open>
+    <summary><b>微信赞赏（长按或扫码，金额随意，感谢支持 ✨）</b></summary>
+    <br>
+    <img src="images/wechat-reward.jpg" alt="瑾之笺·微信赞赏码" width="260" height="260" style="border-radius:10px;border:1px solid #e3e6ea;"/>
+    <p><i>（若图片未显示：请将你的赞赏码保存为 <code>images/wechat-reward.jpg</code> 后，在本仓库 <b>images/</b> 目录替换占位即可）</i></p>
+  </details>
+</div>
+
+- 爱发电主页（会员 / 付费内容 / 定制服务）：<https://afdian.com/a/qiaoshan95236>
+- GitHub 仓库：<https://github.com/weiqiaosha-creator/jinzhijian>
 
 ---
 

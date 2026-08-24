@@ -31,6 +31,12 @@ ehthumbs_vista.db
 # 本地开发辅助脚本
 copy-libs.bat
 copy-libs.vbs
+pack-zip.ps1
+pack-zip.bat
+upload-release.ps1
+
+# 打包产物
+dist/
 
 # 本地图标目录（不入库，避免 JPG 格式兼容问题）
 icons/

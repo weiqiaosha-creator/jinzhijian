@@ -42,6 +42,19 @@
     .account { display:flex; gap:14px; align-items:center; }
     .sponsor { font-size:12px; color:var(--mut); line-height:1.8; }
     .sponsor a { color:var(--pri); }
+    .sponsor-btn-row { display:flex; gap:10px; margin:12px 0 4px; }
+    .sponsor-btn-row button { flex:1; padding:9px 10px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; border:1px solid transparent; }
+    .btn-wechat { background:#fff; color:#07c160; border:1px solid #07c160 !important; }
+    .btn-wechat:hover { background:#e8f9ef; }
+    .btn-afdian { background:#3B82F6; color:#fff; }
+    .btn-afdian:hover { background:#2563EB; }
+    #reward-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:99999; align-items:center; justify-content:center; flex-direction:column; gap:10px; }
+    #reward-mask.on { display:flex; }
+    #reward-box { background:#fff; padding:20px 20px 14px; border-radius:14px; text-align:center; max-width:94%; }
+    #reward-box h4 { margin:0 0 12px; color:#07c160; font-size:15px; }
+    #reward-box img { width:300px; height:300px; object-fit:contain; border-radius:10px; background:#fafafa; }
+    #reward-box p { margin:10px 0 0; font-size:12px; color:var(--mut); line-height:1.7; }
+    #reward-close { margin-top:6px; padding:7px 16px; border:none; border-radius:7px; background:#eef1f5; color:var(--txt); cursor:pointer; font-size:12px; font-weight:600; }
   </style>
 </head>
 <body>
@@ -122,14 +135,33 @@
         <summary>关于 · 赞助 · 开源</summary>
         <p class="sponsor">
           <b>瑾之笺</b> 是一套独立版权、clean-room 实现的公众号排版发布工具，支持 md/docx/pptx 拖入、数十套可筛选模板、GIF 动态图、免费图库与定时发送。<br>
-          · 开源仓库（欢迎 Star / 提 Issue）：<a href="https://github.com/" id="gh" target="_blank">GitHub 待发布</a><br>
-          · 赞助支持持续维护：<a href="https://afdian.com/" target="_blank">爱发电 / 赞助</a><br>
+          · 开源仓库（欢迎 Star / 提 Issue）：<a href="https://github.com/weiqiaosha-creator/jinzhijian" id="gh" target="_blank">weiqiaosha-creator/jinzhijian</a><br>
           · 商业授权 / 托管定时服务（个人号真·云端定时）：见 README「商业与赞助」一节<br>
           本工具对所有人免费可用；若你的团队需要私有定制或云端托管定时，可联系作者获取商业许可，这也是它持续免费的动力之一。
         </p>
+        <div class="sponsor-btn-row">
+          <button class="btn-wechat" id="btn-wechat">💚 微信赞赏支持作者</button>
+          <button class="btn-afdian" onclick="window.open('https://afdian.com/a/qiaoshan95236','_blank')">💙 爱发电 / 赞助</button>
+        </div>
       </details>
     </div>
   </div>
+
+  <div id="reward-mask" onclick="if(event.target===this)document.getElementById('reward-mask').classList.remove('on')">
+    <div id="reward-box">
+      <h4>感谢支持瑾之笺 · 微信赞赏</h4>
+      <img id="reward-img" src="images/wechat-reward.jpg" alt="微信赞赏码"
+           onerror="this.onerror=null;this.style.border='2px dashed #e3e6ea';this.parentNode.querySelector('p.tip').innerHTML='⚠️ 尚未放入赞赏码图片，<br>请把你保存的赞赏码命名为 <b>images/wechat-reward.jpg</b> 放在瑾之笺目录下后刷新。'" />
+      <p class="tip">长按或扫码支持作者 ✨</p>
+      <button id="reward-close" onclick="document.getElementById('reward-mask').classList.remove('on')">关闭</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('btn-wechat').addEventListener('click', function () {
+      document.getElementById('reward-mask').classList.add('on');
+    });
+  </script>
 
   <script src="markdown-it.min.js"></script>
   <script src="mammoth.browser.min.js"></script>
