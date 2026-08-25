@@ -35,6 +35,10 @@
     '<button id="jz-insert" style="flex:1;padding:8px;border:none;border-radius:7px;background:#00A86B;color:#fff;font-weight:600;cursor:pointer;">插入编辑器</button>' +
     '<button id="jz-send" style="flex:1;padding:8px;border:none;border-radius:7px;background:#e08020;color:#fff;font-weight:600;cursor:pointer;">推/定时</button>' +
     '</div>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button id="jz-export-html" style="flex:1;padding:7px 8px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">📄 导出 HTML</button>' +
+    '<button id="jz-export-pdf" style="flex:1;padding:7px 8px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">🖨️ 导出 PDF</button>' +
+    '</div>' +
     '<div id="jz-diagnose" style="font-size:11px;padding:6px 8px;border-radius:5px;background:#f0f2f5;color:#555;margin-top:4px;line-height:1.5;"></div>' +
     '<div id="jz-status" style="font-size:12px;min-height:16px;"></div>' +
     '<details id="jz-imgwrap" style="font-size:12px;color:#8a93a0;display:none;"><summary style="cursor:pointer;color:#667eea;font-weight:600;margin-bottom:4px;">📷 图片证据表</summary><div id="jz-imgtable" style="max-height:140px;overflow:auto;"></div></details>' +
@@ -692,6 +696,89 @@
         toast('手机预览失败：' + (e && e.message || e), '#d9480f');
         status('手机预览异常：' + (e && e.message || e), true);
       }
+    };
+
+    // ==== ⬇️ 导出（HTML / PDF）：复用同一套 containerCss + combined() 渲染 ====
+    function currentContainerCss() {
+      var theme = getTheme(themeName);
+      var css = '';
+      if (window.QSConverter && theme.container) {
+        for (var k in theme.container) {
+          if (!Object.prototype.hasOwnProperty.call(theme.container, k)) continue;
+          if (k === 'macStyle') continue;
+          css += k + ':' + theme.container[k] + ';';
+        }
+      }
+      return css || 'padding:20px;line-height:1.75;font-size:15px;word-break:break-word;';
+    }
+    function safeFileName(s) {
+      s = String(s == null ? '' : s).replace(/[\\/:*?"<>|\r\n\t]/g, '').trim();
+      return s || '未命名文章';
+    }
+    function exportFullHtml() {
+      var html = combined(); if (!html) { status('没有可导出的内容。', true); return null; }
+      var themeLabel = (themeSel.options[themeSel.selectedIndex] || {}).textContent || themeName;
+      var containerCss = currentContainerCss();
+      return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+        '<meta name="generator" content="瑾之笺">' +
+        '<title>' + escapeHtml(themeLabel) + ' · ' + escapeHtml(safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章')) + '</title>' +
+        '<style>body{margin:0;background:#fff;}body>div{max-width:100%;box-sizing:border-box;margin:0 auto;padding:20px;line-height:1.75;font-size:15px;word-break:break-word;}#jz-export-meta{font:12px/1.6 -apple-system,"PingFang SC",sans-serif;color:#8a93a0;text-align:center;padding:8px;border-bottom:1px solid #eef1f5;}</style>' +
+        '</head><body>' +
+        '<div id="jz-export-meta">由 瑾之笺 导出 · 主题：' + escapeHtml(themeLabel) + '</div>' +
+        '<div style="' + containerCss + '">' + html + '</div>' +
+        '</body></html>';
+    }
+    function downloadFile(content, filename, mime) {
+      try {
+        var blob = new Blob([content], { type: mime + ';charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      } catch (e_dl) {
+        console.error('[瑾之笺] 导出文件失败:', e_dl);
+        status('导出失败：' + (e_dl && e_dl.message || e_dl), true);
+      }
+    }
+
+    panel.querySelector('#jz-export-html').onclick = function () {
+      var full = exportFullHtml(); if (!full) return;
+      var themeLabel = (themeSel.options[themeSel.selectedIndex] || {}).textContent || themeName;
+      var baseName = safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章');
+      var filename = baseName + '-' + themeLabel + '.html';
+      downloadFile(full, filename, 'text/html');
+      toast('📄 已导出：' + filename, '#00A86B');
+      status('已导出 HTML：' + filename);
+    };
+
+    panel.querySelector('#jz-export-pdf').onclick = function () {
+      var full = exportFullHtml(); if (!full) return;
+      var themeLabel = (themeSel.options[themeSel.selectedIndex] || {}).textContent || themeName;
+      var baseName = safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章');
+      var filename = baseName + '-' + themeLabel + '.pdf';
+      var w = window.open('', 'jz_pdf_export', 'width=768,height=900,scrollbars=yes,menubar=no,toolbar=no,location=no');
+      if (!w) {
+        toast('⚠️ 浏览器拦截了导出弹窗', '#d9480f');
+        status('浏览器拦截了弹出窗口。请在地址栏右侧点「已阻止的弹出内容」，允许弹窗后重试。', true);
+        return;
+      }
+      try {
+        w.document.open(); w.document.write(full); w.document.close();
+        w.document.title = baseName + '-' + themeLabel;
+      } catch (e_doc2) {
+        var dataUrl2 = 'data:text/html;charset=utf-8,' + encodeURIComponent(full);
+        try { w.location.href = dataUrl2; } catch (_) {}
+      }
+      w.addEventListener('load', function () {
+        setTimeout(function () {
+          try { w.focus(); w.print(); }
+          catch (e_pr) { console.warn('[瑾之笺] PDF 打印调用失败:', e_pr); }
+        }, 300);
+      });
+      toast('🖨️ 请在打印对话框选择「另存为 PDF」', '#667eea');
+      status('已打开打印预览，请选「另存为 PDF」导出：' + filename);
     };
 
     panel.querySelector('#jz-insert').onclick = function () {
