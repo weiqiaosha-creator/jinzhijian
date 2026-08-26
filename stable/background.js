@@ -14,6 +14,59 @@ var JZ_VERSION = '2.0.1-stable';
 
 try {
 
+  // ---------- ArrayBuffer → Base64（service worker 无 FileReader，需手工编码） ----------
+  function arrayBufferToBase64(buffer) {
+    try {
+      var bytes = new Uint8Array(buffer);
+      var CHUNK = 0x8000;
+      var out = '';
+      for (var i = 0; i < bytes.length; i += CHUNK) {
+        var sub = bytes.subarray(i, i + CHUNK);
+        out += jzBtoa(String.fromCharCode.apply(null, sub));
+      }
+      return out;
+    } catch (e) {
+      return '';
+    }
+  }
+  function jzBtoa(str) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var out = '';
+    var n = str.length;
+    var i = 0;
+    // 以 3 字节为单位：不足的尾部显式用 NaN 标记，避免越界读造成编码错误
+    while (i < n) {
+      var c1 = str.charCodeAt(i++) & 0xFF;
+      var c2 = i < n ? (str.charCodeAt(i++) & 0xFF) : NaN;
+      var c3 = i < n ? (str.charCodeAt(i++) & 0xFF) : NaN;
+      var e1 = c1 >> 2;
+      var e2 = ((c1 & 3) << 4) | (isNaN(c2) ? 0 : ((c2 >> 4) & 0x0F));
+      var e3;
+      if (isNaN(c2)) e3 = 64; else e3 = (((c2 & 0x0F) << 2) | (isNaN(c3) ? 0 : ((c3 >> 6) & 0x03)));
+      var e4 = isNaN(c3) ? 64 : (c3 & 0x3F);
+      out += chars.charAt(e1) + chars.charAt(e2) + (e3 === 64 ? '=' : chars.charAt(e3)) + (e4 === 64 ? '=' : chars.charAt(e4));
+    }
+    return out;
+  }
+
+  // ---------- 启动即心跳：保证 SW 立刻注册，不会在扩展管理页显示「无效/不活动」 ----------
+  (function jzSwAlive() {
+    try {
+      // 立刻 self.skipWaiting + clients.claim 激活所有旧标签页
+      if (typeof self !== 'undefined' && typeof self.skipWaiting === 'function') {
+        self.addEventListener('install', function () { try { self.skipWaiting(); } catch (_e) {} });
+        self.addEventListener('activate', function (ev) {
+          try { if (typeof self.clients !== 'undefined' && typeof self.clients.claim === 'function') { ev.waitUntil(self.clients.claim()); } } catch (_e) {}
+        });
+      }
+      // 周期性心跳：向自身发消息（不改变功能，但让 SW 保持激活态）
+      var HEARTBEAT_MS = 25 * 1000;
+      setInterval(function () {
+        try { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) { /* 触发 runtime 访问维持激活 */ var _t = chrome.runtime.id; } } catch (_h) {}
+      }, HEARTBEAT_MS);
+    } catch (_x) {}
+  })();
+
   // ---------- 极简通知（不依赖 icon 文件，避免图片路径问题） ----------
   function jzNotify(text) {
     try {
@@ -46,6 +99,36 @@ try {
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       try {
         if (!msg || !msg.type) return;
+        // 跨域抓图：利用扩展 host_permissions，绕过页面 CORS 限制，把 mmbiz 图片转 base64
+        // 供 content.js 导出 DOCX/MD 时内嵌图片（否则 Word 因微信防盗链加载不到图）。
+        if (msg.type === 'fetch-image') {
+          var fUrl = msg.url;
+          if (!fUrl) { try { sendResponse({ ok: false, error: 'no url' }); } catch (_sr0) {} return; }
+          fetch(fUrl, { credentials: 'omit', referrer: '' })
+            .then(function (res) {
+              if (!res.ok) { try { sendResponse({ ok: false, status: res.status }); } catch (_sr1) {} return; }
+              var mime = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+              if (!mime) { mime = 'image/jpeg'; }
+              return res.arrayBuffer().then(function (ab) {
+                // 直接以 Uint8Array 传输，比转 base64 字符串更高效，也避免超长字符串截断导致 atob 失败
+                return { mime: mime.split(';')[0] || 'image/jpeg', bytes: new Uint8Array(ab) };
+              });
+            })
+            .then(function (out) {
+              if (!out) return;
+              try { sendResponse({ ok: true, mime: out.mime, bytes: out.bytes }); } catch (_sr2) {
+                // 个别浏览器/特殊环境下传不了类型化数组，回退 base64 兜底
+                try {
+                  var b64Fallback = arrayBufferToBase64(out.bytes.buffer);
+                  sendResponse({ ok: true, mime: out.mime, data: b64Fallback });
+                } catch (_sr2b) { try { sendResponse({ ok: false, error: 'transfer failed' }); } catch (_e) {} }
+              }
+            })
+            .catch(function (e) {
+              try { sendResponse({ ok: false, error: String(e && e.message || e) }); } catch (_sr3) {}
+            });
+          return true; // 异步响应
+        }
         if (msg.type === 'notify') {
           jzNotify(msg.text || '');
           try { sendResponse({ ok: true }); } catch (_sr) {}
@@ -90,6 +173,4 @@ try {
       try { sendResponse({ ok: false, error: '扩展 service worker 异常，请重新加载扩展。' }); } catch (_b) {}
     });
   } catch (_c) {}
-}<system-reminder>
-Warning: the file exists but is shorter than the provided offset (2001). The file has 93 lines.
-</system-reminder>
+}

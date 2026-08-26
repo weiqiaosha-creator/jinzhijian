@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "瑾之笺·稳定版",
-  "version": "2.0.2",
+  "version": "2.0.13",
   "description": "瑾之笺：多格式（md/docx/pptx）拖入公众号后台、40套主题模板筛选、插入编辑器样式零丢失、免费图库、推草稿与定时群发。独立版权，开源 clean-room 实现。",
   "permissions": ["storage", "activeTab", "alarms", "notifications", "tabs"],
   "host_permissions": [
     "https://mp.weixin.qq.com/*",
-    "https://api.weixin.qq.com/*"
+    "https://api.weixin.qq.com/*",
+    "https://mmbiz.qpic.cn/*",
+    "https://mmbiz.qlogo.cn/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -37,3 +39,4 @@
     }
   ]
 }
+

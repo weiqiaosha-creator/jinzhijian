@@ -19,11 +19,16 @@
   var panel = document.createElement('div');
   panel.id = 'jz-panel';
   panel.style.cssText = 'position:fixed;right:16px;bottom:16px;width:330px;max-height:82vh;overflow:auto;z-index:99999;background:#fff;border:1px solid #e3e6ea;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.15);font-family:-apple-system,"PingFang SC",sans-serif;font-size:13px;color:#2b3a4a;user-select:none;';
+  // 打印时隐藏插件界面，避免出现在打印预览/导出结果中遮挡内容
+  var jzPrintCss = document.createElement('style');
+  jzPrintCss.textContent = '@media print{#jz-panel,#jz-panel *{display:none!important}body>#jz-panel{display:none!important}}';
+  (document.head || document.documentElement).appendChild(jzPrintCss);
   panel.innerHTML =
     '<div id="jz-head" style="padding:10px 14px;border-bottom:1px solid #eef1f5;font-weight:700;color:#00A86B;display:flex;justify-content:space-between;align-items:center;cursor:move;">瑾之笺 <span id="jz-fold" style="font-size:16px;color:#8a93a0;cursor:pointer;user-select:none;" title="折叠/展开">—</span></div>' +
     '<div id="jz-body" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">' +
     '<div id="jz-drop" style="border:2px dashed #c4ccd6;border-radius:8px;padding:16px;text-align:center;color:#8a93a0;cursor:pointer;">拖入 .md/.docx/.pptx<br><span style="font-size:11px;">.doc 转 .docx；支持 GIF</span></div>' +
     '<input id="jz-file" type="file" multiple accept=".md,.markdown,.txt,.docx,.pptx,.doc,.gif" style="display:none;">' +
+    '<button id="jz-capture" style="width:100%;padding:8px;border:none;border-radius:7px;background:#f0f2f5;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;border:1px solid #e3e6ea;">🔍 抓取当前公众号文章</button>' +
     '<div style="display:flex;gap:8px;align-items:center;"><label style="color:#8a93a0;">模板</label><select id="jz-theme" style="flex:1;padding:6px;border:1px solid #e3e6ea;border-radius:6px;"></select></div>' +
     '<input id="jz-title" placeholder="标题（可留空）" style="padding:6px;border:1px solid #e3e6ea;border-radius:6px;">' +
     '<div style="display:flex;gap:10px;align-items:center;font-size:12px;color:#8a93a0;"><span title="认证号：需 AppID/Secret，调用微信 API 推草稿/定时群发；个人号：无需凭证，插件到点自动打开后台发表">账号：</span>' +
@@ -35,13 +40,17 @@
     '<button id="jz-insert" style="flex:1;padding:8px;border:none;border-radius:7px;background:#00A86B;color:#fff;font-weight:600;cursor:pointer;">插入编辑器</button>' +
     '<button id="jz-send" style="flex:1;padding:8px;border:none;border-radius:7px;background:#e08020;color:#fff;font-weight:600;cursor:pointer;">推/定时</button>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;">' +
-    '<button id="jz-export-html" style="flex:1;padding:7px 8px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">📄 导出 HTML</button>' +
-    '<button id="jz-export-pdf" style="flex:1;padding:7px 8px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">🖨️ 导出 PDF</button>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+    '<button id="jz-export-html" style="flex:1;min-width:30%;padding:7px 6px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">📄 导出 HTML</button>' +
+    '<button id="jz-export-pdf" style="flex:1;min-width:30%;padding:7px 6px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">🖨️ 导出 PDF</button>' +
+    '<button id="jz-export-md" style="flex:1;min-width:30%;padding:7px 6px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">📝 导出 MD</button>' +
+    '<button id="jz-export-docx" style="flex:1;min-width:46%;padding:7px 6px;border:1px solid #e3e6ea;border-radius:7px;background:#fafbfc;color:#2b3a4a;font-weight:600;cursor:pointer;font-size:12px;">📃 导出 Word（DOCX）</button>' +
     '</div>' +
     '<div id="jz-diagnose" style="font-size:11px;padding:6px 8px;border-radius:5px;background:#f0f2f5;color:#555;margin-top:4px;line-height:1.5;"></div>' +
     '<div id="jz-status" style="font-size:12px;min-height:16px;"></div>' +
     '<details id="jz-imgwrap" style="font-size:12px;color:#8a93a0;display:none;"><summary style="cursor:pointer;color:#667eea;font-weight:600;margin-bottom:4px;">📷 图片证据表</summary><div id="jz-imgtable" style="max-height:140px;overflow:auto;"></div></details>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span style="color:#8a93a0;font-weight:600;">📋 文件列表</span>' +
+    '<button id="jz-clear-list" title="清空当前文件和已抓取内容" style="border:none;background:none;color:#c92a2a;font-size:12px;cursor:pointer;padding:0 4px;">🗑 清空</button></div>' +
     '<div id="jz-list" style="font-size:12px;color:#8a93a0;"></div>' +
     '</div>';
   document.body.appendChild(panel);
@@ -199,7 +208,15 @@
     drop.addEventListener('drop', function (e) { addFiles(e.dataTransfer.files); });
 
     function addFiles(list) {
-      Array.prototype.forEach.call(list, function (f) { files.push({ file: f, html: '', error: '' }); });
+      Array.prototype.forEach.call(list, function (f) {
+        var ext = (f.name || '').split('.').pop().toLowerCase();
+        var item = { file: f, html: '', error: '', kind: ext, rawText: null };
+        // 对于md/txt文件，立即读取原始文本内容用于导出
+        if (ext === 'md' || ext === 'markdown' || ext === 'txt') {
+          f.text().then(function (t) { item.rawText = t; }).catch(function () {});
+        }
+        files.push(item);
+      });
       convertAll();
     }
 
@@ -717,17 +734,16 @@
     }
     function exportFullHtml() {
       var html = combined(); if (!html) { status('没有可导出的内容。', true); return null; }
-      var themeLabel = (themeSel.options[themeSel.selectedIndex] || {}).textContent || themeName;
-      var containerCss = currentContainerCss();
+      var baseName = safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章');
       return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<meta name="generator" content="瑾之笺">' +
-        '<title>' + escapeHtml(themeLabel) + ' · ' + escapeHtml(safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章')) + '</title>' +
-        '<style>body{margin:0;background:#fff;}body>div{max-width:100%;box-sizing:border-box;margin:0 auto;padding:20px;line-height:1.75;font-size:15px;word-break:break-word;}#jz-export-meta{font:12px/1.6 -apple-system,"PingFang SC",sans-serif;color:#8a93a0;text-align:center;padding:8px;border-bottom:1px solid #eef1f5;}</style>' +
-        '</head><body>' +
-        '<div id="jz-export-meta">由 瑾之笺 导出 · 主题：' + escapeHtml(themeLabel) + '</div>' +
-        '<div style="' + containerCss + '">' + html + '</div>' +
-        '</body></html>';
+        '<title>' + escapeHtml(baseName) + '</title>' +
+        '<style>@page{margin:16mm 14mm;}html,body{margin:0;padding:0;background:#fff;}*{box-sizing:border-box}body{font-size:14px;line-height:1.75;color:#333;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;}' +
+        'body>#jz-export-main{max-width:820px;margin:0 auto;padding:24px 16px;overflow-wrap:break-word;word-break:break-word;text-align:left;}' +
+        'img{max-width:100%;height:auto;}table{max-width:100%;border-collapse:collapse;margin:8px 0;}td,th{border:1px solid #ddd;padding:6px 8px;}' +
+        'blockquote{margin:10px 0;padding-left:14px;border-left:4px solid #e3e6ea;color:#555;}pre{white-space:pre-wrap;word-break:break-word;background:#f6f8fa;padding:10px;border-radius:6px;}</style>' +
+        '</head><body><div id="jz-export-main">' + html + '</div></body></html>';
     }
     function downloadFile(content, filename, mime) {
       try {
@@ -777,8 +793,909 @@
           catch (e_pr) { console.warn('[瑾之笺] PDF 打印调用失败:', e_pr); }
         }, 300);
       });
-      toast('🖨️ 请在打印对话框选择「另存为 PDF」', '#667eea');
-      status('已打开打印预览，请选「另存为 PDF」导出：' + filename);
+      toast('🖨️ 已在打印对话框打开。请取消勾选「页眉和页脚」，再「另存为 PDF」', '#667eea');
+          status('已打开打印预览，请关闭左侧「页眉和页脚」并选「另存为 PDF」：' + filename);
+    };
+
+    // ==== HTML → Markdown 转换（用于非MD文件导出） ====
+    function htmlToMarkdown(html) {
+      if (!html) return '';
+      var div = document.createElement('div');
+      div.innerHTML = html;
+      
+      function getText(el) {
+        return (el.textContent || '').trim();
+      }
+      
+      var md = '';
+      var children = div.children;
+      for (var i = 0; i < children.length; i++) {
+        var el = children[i];
+        var tag = el.tagName.toLowerCase();
+        var text = getText(el);
+        
+        if (!text && tag !== 'img') continue;
+        
+        switch (tag) {
+          case 'h1': md += '# ' + text + '\n\n'; break;
+          case 'h2': md += '## ' + text + '\n\n'; break;
+          case 'h3': md += '### ' + text + '\n\n'; break;
+          case 'h4': md += '#### ' + text + '\n\n'; break;
+          case 'h5': md += '##### ' + text + '\n\n'; break;
+          case 'h6': md += '###### ' + text + '\n\n'; break;
+          case 'p':
+          case 'div':
+          case 'section':
+          case 'article':
+          case 'blockquote':
+            // 递归处理子元素
+            var innerHtml = el.innerHTML;
+            if (innerHtml.indexOf('<') >= 0) {
+              md += htmlToMarkdown(innerHtml) + '\n\n';
+            } else {
+              md += text + '\n\n';
+            }
+            break;
+          case 'ul':
+            var lis = el.children;
+            for (var j = 0; j < lis.length; j++) {
+              if (lis[j].tagName.toLowerCase() === 'li') {
+                md += '- ' + getText(lis[j]) + '\n';
+              }
+            }
+            md += '\n';
+            break;
+          case 'ol':
+            var lis2 = el.children;
+            for (var k = 0; k < lis2.length; k++) {
+              if (lis2[k].tagName.toLowerCase() === 'li') {
+                md += (k + 1) + '. ' + getText(lis2[k]) + '\n';
+              }
+            }
+            md += '\n';
+            break;
+          case 'img':
+            var src = el.getAttribute('src') || '';
+            var alt = el.getAttribute('alt') || '';
+            // 跳过内嵌的base64图片（太大）
+            if (src.indexOf('data:') === 0) {
+              md += '![' + alt + '](图片已内嵌，请查看原文件)\n\n';
+            } else {
+              md += '![' + alt + '](' + src + ')\n\n';
+            }
+            break;
+          case 'pre':
+          case 'code':
+            md += '```\n' + text + '\n```\n\n';
+            break;
+          case 'strong':
+          case 'b':
+            md += '**' + text + '**';
+            break;
+          case 'em':
+          case 'i':
+            md += '*' + text + '*';
+            break;
+          case 'a':
+            var href = el.getAttribute('href') || '';
+            md += '[' + text + '](' + href + ')';
+            break;
+          case 'br':
+            md += '\n';
+            break;
+          case 'hr':
+            md += '---\n\n';
+            break;
+          default:
+            md += text + '\n\n';
+        }
+      }
+      return md;
+    }
+
+    // ==== 导出 Markdown ====
+    panel.querySelector('#jz-export-md').onclick = function () {
+      if (!files.length) { status('没有可导出的内容。请先拖入文件。', true); return; }
+      
+      var baseName = safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章');
+      var mdContent = '';
+      var hasContent = false;
+      
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (!f.html && !f.rawText) continue;
+        
+        // 优先使用原始Markdown文本（对于.md文件）
+        if (f.rawText) {
+          mdContent += f.rawText + '\n\n';
+          hasContent = true;
+        } else if (f.html) {
+          // 对于其他格式，转换HTML为Markdown
+          var md = htmlToMarkdown(f.html);
+          if (f.title) mdContent += '# ' + f.title + '\n\n';
+          mdContent += md + '\n';
+          hasContent = true;
+        }
+      }
+      
+      if (!hasContent) { status('没有可导出的内容。', true); return; }
+      
+      // 添加元信息头
+      var header = '---\n';
+      header += 'title: "' + escapeHtml(baseName) + '"\n';
+      header += 'exported_by: "瑾之笺"\n';
+      header += 'exported_at: "' + new Date().toISOString() + '"\n';
+      header += '---\n\n';
+      
+      var fullMd = header + mdContent;
+      var filename = baseName + '.md';
+      
+      downloadFile(fullMd, filename, 'text/markdown');
+      toast('📝 已导出：' + filename, '#00A86B');
+      status('已导出 Markdown：' + filename + '（' + (files.length) + ' 个文件）');
+    };
+
+    // ==== DOCX 生成：复用已有 JSZip + MHTML altChunk（Word 2007+ 原生支持），图片完全 base64 内嵌 ====
+    // 说明：MS Word 对 altChunk 的要求是使用 MHTML(.mht) 而不是 plain HTML；把外链图片 base64 内嵌到 MHT，
+    // Word 打开时不会尝试联网下载（也就不会因防盗链/图片下载不到而无响应）。
+    function base64EncodeUint8(u8) {
+      var CHUNK = 0x8000; var out = '';
+      for (var i = 0; i < u8.length; i += CHUNK) {
+        var slice = u8.subarray(i, i + CHUNK);
+        try { out += String.fromCharCode.apply(null, Array.prototype.slice.call(slice)); } catch (_e) {
+          // 超大片段 apply 报错时，逐个字符
+          var s = '';
+          for (var k = 0; k < slice.length; k++) s += String.fromCharCode(slice[k]);
+          out += s;
+        }
+      }
+      return btoa(out);
+    }
+    function fetchImageToDataUrl(src) {
+      // 走扩展 background（有 host_permissions，不受页面 CORS 限制）抓取微信图库图片。
+      // 返回 Uint8Array（传输高效、不截断），在 content 里统一编码为 data:image/...;base64,...
+      return new Promise(function (resolve) {
+        var done = false;
+        function doneOnce(v) { if (!done) { done = true; resolve(v); } }
+        try {
+          if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+            try {
+              chrome.runtime.sendMessage({ type: 'fetch-image', url: src }, function (resp) {
+                if (!done && resp && resp.ok) {
+                  var mime = resp.mime || 'image/jpeg';
+                  // 1. 优先走 Uint8Array（Chrome MV3 原生支持、超长图不截断）
+                  if (resp.bytes && (resp.bytes instanceof Uint8Array || (resp.bytes.buffer && resp.bytes.byteLength != null))) {
+                    var u8 = (resp.bytes instanceof Uint8Array) ? resp.bytes : new Uint8Array(resp.bytes);
+                    var b64 = '';
+                    try { b64 = _u8ToB64(u8); } catch (_encErr) {}
+                    if (b64) { doneOnce('data:' + mime + ';base64,' + b64); return; }
+                  }
+                  // 2. 兜底：返回的是 base64 字符串
+                  if (resp.data && typeof resp.data === 'string') {
+                    var clean = resp.data.replace(/[^A-Za-z0-9+/=]/g, '');
+                    var pad2 = (4 - (clean.length % 4)) % 4;
+                    if (pad2) clean += '==='.slice(0, pad2);
+                    doneOnce('data:' + mime + ';base64,' + clean);
+                    return;
+                  }
+                }
+                // 3. background 失败：退回 canvas（适用于放行 CORS 的同域图）
+                canvasImage(src, doneOnce);
+              });
+              setTimeout(function () { if (!done) canvasImage(src, doneOnce); }, 4000);
+              return;
+            } catch (_eb) { /* 消息发送失败走 canvas */ }
+          }
+        } catch (_ex) {}
+        canvasImage(src, doneOnce);
+      });
+    }
+    function _u8ToB64(u8) {
+      // 手工 base64：避免超长字符串经 background 转义/截断导致 atob 失败。
+      var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      var out = ''; var i = 0; var n = u8.length;
+      while (i < n) {
+        var b1 = u8[i++];
+        var b2 = i < n ? u8[i++] : NaN;
+        var b3 = i < n ? u8[i++] : NaN;
+        var e1 = b1 >> 2;
+        var e2 = ((b1 & 3) << 4) | (isNaN(b2) ? 0 : ((b2 >> 4) & 0x0F));
+        var e3;
+        if (isNaN(b2)) e3 = 64; else e3 = (((b2 & 0x0F) << 2) | (isNaN(b3) ? 0 : ((b3 >> 6) & 0x03)));
+        var e4 = isNaN(b3) ? 64 : (b3 & 0x3F);
+        out += chars.charAt(e1) + chars.charAt(e2) + (e3 === 64 ? '=' : chars.charAt(e3)) + (e4 === 64 ? '=' : chars.charAt(e4));
+      }
+      return out;
+    }
+    function canvasImage(src, doneOnce) {
+      // 页面内 canvas 方案：仅在图片可被 canvas 读取时有效（多为同域或放行 CORS 的图）
+      var fired = false;
+      function fire(v) { if (!fired) { fired = true; doneOnce(v); } }
+      try {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+          try {
+            var c = document.createElement('canvas');
+            var w = Math.max(1, img.naturalWidth || img.width);
+            var h = Math.max(1, img.naturalHeight || img.height);
+            c.width = w; c.height = h;
+            var ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            fire(c.toDataURL('image/png'));
+            return;
+          } catch (_e1) { /* tainted */ }
+          fire(null);
+        };
+        img.onerror = function () { fire(null); };
+        setTimeout(function () { fire(null); }, 3000);
+        img.src = src;
+      } catch (_ex2) { fire(null); }
+    }
+    function inlineImagesInHtml(html) {
+      return new Promise(function (resolve) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var imgs = tmp.querySelectorAll('img[src]');
+        if (!imgs.length) { resolve(tmp.innerHTML); return; }
+        var pending = 0; var finished = 0;
+        function check() { if (finished >= pending) resolve(tmp.innerHTML); }
+        var srcs = [];
+        for (var i = 0; i < imgs.length; i++) {
+          var im = imgs[i];
+          var s = im.getAttribute('src') || '';
+          if (s.indexOf('data:') === 0) {
+            // 已是 data url：解析真实宽高并写入 data-w/data-h 供 OOXML 计算尺寸
+            probeSizeAndAttach(im, s);
+            continue;
+          }
+          if (!/^(https?:)?\/\//i.test(s)) continue;
+          pending++; srcs.push({ el: im, src: s });
+        }
+        if (!pending) { resolve(tmp.innerHTML); return; }
+        for (var j = 0; j < srcs.length; j++) {
+          (function (it) {
+            fetchImageToDataUrl(it.src).then(function (d) {
+              try {
+                if (d) {
+                  it.el.setAttribute('src', d);
+                  probeSizeAndAttach(it.el, d);
+                }
+              } catch (_) {}
+              finished++; check();
+            });
+          })(srcs[j]);
+        }
+        function probeSizeAndAttach(el, dataUrl) {
+          try {
+            var probe = new Image();
+            var settled = false;
+            function done(w, h) {
+              if (settled) return; settled = true;
+              if (w && h && w > 0 && h > 0) {
+                el.setAttribute('data-w', String(w));
+                el.setAttribute('data-h', String(h));
+              }
+            }
+            probe.onload = function () { done(probe.naturalWidth || probe.width, probe.naturalHeight || probe.height); };
+            probe.onerror = function () { done(0, 0); };
+            setTimeout(function () { done(0, 0); }, 2500);
+            probe.src = dataUrl;
+          } catch (_) {}
+        }
+        // 总体兜底超时
+        setTimeout(function () { resolve(tmp.innerHTML); }, 60000);
+      });
+    }
+    // [已废弃] 旧 altChunk/MHT 实现已被下方 makeDocxOOXML（标准 OOXML）取代，删除以免残留失效代码。
+    function makeDocxBlob(innerHtml, docTitle) {
+      console.warn('[瑾之笺] 已改用 makeDocxOOXML，旧 MHT 实现不再使用。');
+      return makeDocxOOXML(innerHtml, docTitle);
+    }
+
+    // ==== 标准 OOXML DOCX 生成（抛弃 altChunk/MHT）：Word 与 WPS 均原生支持 ====
+    // 图像转成 word/media/* 真实部件并用 drawingML 引用，避免微信防盗链和无图问题。
+    function escapeXml(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    }
+    function b64ToUint8(b64) {
+      // 容错解码：过滤非 base64 字符，避免 atob 因换行/空格/runtime base64 padding 问题导致 decode 失败。
+      var raw = String(b64 || '').replace(/[^A-Za-z0-9+/=]/g, '');
+      var pad = (4 - (raw.length % 4)) % 4;
+      if (pad) raw += '==='.slice(0, pad);
+      var bin = '';
+      try {
+        bin = atob(raw);
+      } catch (_e) {
+        // atob 仍失败时：手工解码 base64，保证不崩溃。
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        var out = new Uint8Array(Math.floor((raw.length * 3) / 4));
+        var pos = 0;
+        for (var i2 = 0; i2 < raw.length; i2 += 4) {
+          var h1 = chars.indexOf(raw.charAt(i2));
+          var h2 = chars.indexOf(raw.charAt(i2 + 1));
+          var h3 = chars.indexOf(raw.charAt(i2 + 2));
+          var h4 = chars.indexOf(raw.charAt(i2 + 3));
+          if (h1 < 0 || h2 < 0) continue;
+          var b1 = (h1 << 2) | (h2 >> 4);
+          out[pos++] = b1 & 0xff;
+          if (h3 >= 0 && raw.charAt(i2 + 2) !== '=') {
+            var b2 = ((h2 & 15) << 4) | (h3 >> 2);
+            out[pos++] = b2 & 0xff;
+            if (h4 >= 0 && raw.charAt(i2 + 3) !== '=') {
+              var b3 = ((h3 & 3) << 6) | h4;
+              out[pos++] = b3 & 0xff;
+            }
+          }
+        }
+        return out.subarray(0, pos);
+      }
+      var u = new Uint8Array(bin.length);
+      for (var j = 0; j < bin.length; j++) u[j] = bin.charCodeAt(j);
+      return u;
+    }
+    function ooxmlRunRPr(fmt) {
+      var p = '';
+      if (fmt && fmt.b) p += '<w:b/>';
+      if (fmt && fmt.i) p += '<w:i/>';
+      if (fmt && fmt.u) p += '<w:u w:val="single"/>';
+      if (fmt && fmt.font && fmt.font !== '') p += '<w:rFonts w:ascii="' + fmt.font + '" w:eastAsia="' + fmt.font + '" w:hAnsi="' + fmt.font + '"/>';
+      return p ? '<w:rPr>' + p + '</w:rPr>' : '';
+    }
+    // 行内/块级 <img> → 单个 w:drawing（data: URL → word/media 部件）。
+    // inlineImagesInHtml 已把所有 src 换成 data: URL，并写入 data-w/data-h 真实尺寸。
+    // mediaRels 为共享数组，每次调用登记一个媒体条目，供打包阶段生成 media 部件与 rel。
+    function ooxmlImage(img, mediaRels) {
+      try {
+        var src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+        var m = /^data:([^;,]+);base64,(.+)$/i.exec(src);
+        if (!m) return ''; // 无有效内嵌数据则跳过（该图不产出）
+        var mime = String(m[1]).toLowerCase();
+        var b64 = m[2];
+        if (!b64) return '';
+        var ext = (mime.split('/')[1] || 'png').toLowerCase();
+        if (ext === 'jpeg' || ext === 'jpe') ext = 'jpg';
+        var relId = 'rIdImg' + (mediaRels.length + 1);
+        mediaRels.push({ id: relId, ext: ext, mime: mime, b64: b64, url: src });
+        // 照片完整落在 A4 可用区内（EMU 单位：1英寸=914400 EMU）
+        // sectPr 定义：A4 pgSz=11906twips×16838twips≈8.27×11.69英寸，左右边距各1440twips=1英寸
+        // 可用正文 ≈ 6.27英寸宽 × 9.69英寸高。取保守安全值：宽6英寸 / 高8英寸。
+        var natW = parseInt(img.getAttribute('data-w') || '0', 10) || 0;
+        var natH = parseInt(img.getAttribute('data-h') || '0', 10) || 0;
+        var wpx = natW > 0 ? natW : 600;
+        var hpx = natH > 0 ? natH : 450;
+        var cx = Math.max(1, Math.round(wpx * 914400 / 96));
+        var cy = Math.max(1, Math.round(hpx * 914400 / 96));
+        var MAX_W_EMU = 5486400; // 6 英寸（页面可用宽 6.27 英寸留 0.27 英寸安全余度）
+        var MAX_H_EMU = 7315200; // 8 英寸（页面可用高 9.69 英寸留 1.7 英寸安全余度）
+        if (cx > MAX_W_EMU) {
+          var _rw = MAX_W_EMU / cx;
+          cx = MAX_W_EMU;
+          cy = Math.max(1, Math.round(cy * _rw));
+        }
+        if (cy > MAX_H_EMU) {
+          var _rh = MAX_H_EMU / cy;
+          cy = MAX_H_EMU;
+          cx = Math.max(1, Math.round(cx * _rh));
+        }
+        var idN = 2048 + mediaRels.length;
+        return '<w:r><w:drawing>' +
+          '<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">' +
+          '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
+          '<wp:effectExtent l="0" t="0" r="0" b="0"/>' +
+          '<wp:docPr id="' + idN + '" name="Picture ' + idN + '"/>' +
+          '<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>' +
+          '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+          '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+          '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+          '<pic:nvPicPr><pic:cNvPr id="' + idN + '" name="Picture ' + idN + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+          '<pic:blipFill><a:blip r:embed="' + relId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+          '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>' +
+          '</pic:pic>' +
+          '</a:graphicData></a:graphic>' +
+          '</wp:inline></w:drawing></w:r>';
+      } catch (_eimg) { return ''; }
+    }
+    // 内联节点序列 → 一组 w:r（仅处理文字、加粗/斜体/下划线、br、行内图片）
+    function ooxmlInlineList(children, mediaRels, fmt) {
+      var xml = '';
+      for (var i = 0; i < children.length; i++) {
+        var n = children[i];
+        if (n.nodeType === 3) {
+          var t = n.nodeValue; if (t == null) continue;
+          if (t.length === 0) continue;
+          xml += '<w:r>' + ooxmlRunRPr(fmt) + '<w:t xml:space="preserve">' + escapeXml(t) + '</w:t></w:r>';
+        } else if (n.nodeType === 1) {
+          var tag = n.tagName.toLowerCase();
+          if (tag === 'b' || tag === 'strong') xml += ooxmlInlineList(n.childNodes, mediaRels, { b: true, i: fmt.i, u: fmt.u, font: fmt.font });
+          else if (tag === 'i' || tag === 'em') xml += ooxmlInlineList(n.childNodes, mediaRels, { b: fmt.b, i: true, u: fmt.u, font: fmt.font });
+          else if (tag === 'u') xml += ooxmlInlineList(n.childNodes, mediaRels, { b: fmt.b, i: fmt.i, u: true, font: fmt.font });
+          else if (tag === 'a') {
+            // WPS/Word 超链接需要 Relationship；为保持开箱即用，这里把「文本 + 链接地址」都打出来，无外部依赖
+            var txt = ooxmlInlineList(n.childNodes, mediaRels, { b: fmt.b, i: true, u: true, font: fmt.font });
+            var href = escapeXml(n.getAttribute('href') || '');
+            xml += txt;
+            if (href) {
+              xml += '<w:r>' + ooxmlRunRPr({ font: fmt.font }) + '<w:t xml:space="preserve"> (' + href + ')</w:t></w:r>';
+            }
+          }
+          else if (tag === 'code' || tag === 'tt') xml += ooxmlInlineList(n.childNodes, mediaRels, { b: fmt.b, i: fmt.i, u: fmt.u, font: 'Consolas' });
+          else if (tag === 'br') xml += '<w:r>' + ooxmlRunRPr(fmt) + '<w:br/></w:r>';
+          else if (tag === 'img') xml += ooxmlImage(n, mediaRels);
+          else if (tag === 'span' || tag === 'font' || tag === 'label' || tag === 'small' || tag === 'big' || tag === 'sub' || tag === 'sup') {
+            xml += ooxmlInlineList(n.childNodes, mediaRels, fmt);
+          }
+          else {
+            // 其它内联容器：继续走其内联内容，避免嵌套 block 导致截断
+            xml += ooxmlInlineList(n.childNodes, mediaRels, fmt);
+          }
+        }
+      }
+      return xml;
+    }
+    function ooxmlParagraph(node, mediaRels, alignLeft) {
+      var runs = ooxmlInlineList(node.childNodes, mediaRels, {});
+      // 空段落保持换行，不直接丢弃
+      var pPr = '<w:pPr>';
+      if (alignLeft) pPr += '';
+      else pPr += '';
+      pPr += '</w:pPr>';
+      return '<w:p>' + pPr + runs + '</w:p>';
+    }
+    function ooxmlImageBlock(img, mediaRels) {
+      // 块级路径：必须把 run 包进 <w:p>，否则在 body 里产生「孤儿 run」导致 Word 中断/判损坏
+      var run = ooxmlImage(img, mediaRels);
+      return run ? '<w:p>' + run + '</w:p>' : '';
+    }
+    function ooxmlBdr(pos) {
+      return '<w:' + pos + ' w:val="single" w:sz="4" w:space="0" w:color="888888"/>';
+    }
+    function ooxmlTable(table, mediaRels) {
+      var rows = table.querySelectorAll('tr');
+      if (!rows.length) return '';
+      var xml = '<w:tbl>' +
+        '<w:tblPr>' +
+        '<w:tblW w:w="5000" w:type="pct"/>' +
+        '<w:tblBorders>' + ooxmlBdr('top') + ooxmlBdr('left') + ooxmlBdr('bottom') + ooxmlBdr('right') + ooxmlBdr('insideH') + ooxmlBdr('insideV') + '</w:tblBorders>' +
+        '<w:tblLook w:val="04A0"/>' +
+        '</w:tblPr>';
+      for (var r = 0; r < rows.length; r++) {
+        xml += '<w:tr>';
+        var cells = rows[r].querySelectorAll('td,th');
+        for (var c = 0; c < cells.length; c++) {
+          var cell = cells[c];
+          // 单元格内容：用 BLOCK 递归展开，能正确处理嵌套 p/img
+          var cellXml = ooxmlBlocksFromNode(cell, mediaRels);
+          if (!cellXml) cellXml = '<w:p/>';
+          xml += '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>' + cellXml + '</w:tc>';
+        }
+        xml += '</w:tr>';
+      }
+      xml += '</w:tbl><w:p/>';
+      return xml;
+    }
+    // 核心：从节点出发，递归输出 BLOCK（段落/标题/列表/表格/图片/嵌套容器）。
+    function ooxmlBlocksFromNode(root, mediaRels) {
+      var out = '';
+      var kids = root.childNodes;
+      for (var i = 0; i < kids.length; i++) {
+        var n = kids[i];
+        if (n.nodeType === 3) {
+          var tx = (n.nodeValue || '').replace(/[ \t\r\f\v]+/g, ' ');
+          if (tx.trim().length === 0) continue;
+          out += '<w:p><w:r><w:t xml:space="preserve">' + escapeXml(tx) + '</w:t></w:r></w:p>';
+          continue;
+        }
+        if (n.nodeType !== 1) continue;
+        var tag = n.tagName.toLowerCase();
+        // ---- 真正的块级元素派发：递归 ----
+        if (tag === 'p' || tag === 'div' || tag === 'section' || tag === 'article' || tag === 'header' || tag === 'footer' || tag === 'aside' || tag === 'nav') {
+          // 如果内部是纯内联（无嵌套块），直接作为段落；否则递归展开内部分块
+          var hasBlockKid = false;
+          for (var q = 0; q < n.children.length; q++) {
+            var ck = n.children[q].tagName.toLowerCase();
+            if (/^(p|div|section|article|h[1-6]|ul|ol|table|pre|blockquote|img)$/.test(ck)) { hasBlockKid = true; break; }
+          }
+          if (!hasBlockKid) out += ooxmlParagraph(n, mediaRels, true);
+          else out += ooxmlBlocksFromNode(n, mediaRels);
+        } else if (/^h[1-6]$/.test(tag)) {
+          var lvl = parseInt(tag.charAt(1), 10);
+          var sizes = [48, 40, 36, 32, 30, 28]; // 对应 h1..h6
+          var sz = sizes[(lvl - 1)] || 28;
+          var innerRuns = ooxmlInlineList(n.childNodes, mediaRels, { b: true });
+          out += '<w:p><w:pPr><w:spacing w:before="200" w:after="120"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="' + sz + '"/></w:rPr></w:r>' + innerRuns + '</w:p>';
+        } else if (tag === 'ul' || tag === 'ol') {
+          var ordered = (tag === 'ol');
+          var seq = 0;
+          var listKids = n.children;
+          for (var li = 0; li < listKids.length; li++) {
+            if (listKids[li].tagName.toLowerCase() !== 'li') continue;
+            seq++;
+            var mark = ordered ? (seq + '. ') : '• ';
+            var liHasBlock = false;
+            for (var lq = 0; lq < listKids[li].children.length; lq++) {
+              var lck = listKids[li].children[lq].tagName.toLowerCase();
+              if (/^(p|div|h[1-6]|ul|ol|table|pre|blockquote)$/.test(lck)) { liHasBlock = true; break; }
+            }
+            var itemBody;
+            if (!liHasBlock) {
+              itemBody = ooxmlInlineList(listKids[li].childNodes, mediaRels, {});
+              out += '<w:p><w:pPr><w:ind w:left="360" w:hanging="0"/></w:pPr>' +
+                '<w:r><w:t xml:space="preserve">' + escapeXml(mark) + '</w:t></w:r>' +
+                itemBody + '</w:p>';
+            } else {
+              out += '<w:p><w:pPr><w:ind w:left="360"/></w:pPr>' +
+                '<w:r><w:t xml:space="preserve">' + escapeXml(mark) + '</w:t></w:r></w:p>';
+              out += ooxmlBlocksFromNode(listKids[li], mediaRels);
+            }
+          }
+        } else if (tag === 'img') {
+          out += ooxmlImageBlock(n, mediaRels);
+        } else if (tag === 'table') {
+          out += ooxmlTable(n, mediaRels);
+        } else if (tag === 'blockquote') {
+          out += '<w:p><w:pPr><w:ind w:left="420" w:right="360"/><w:pBdr><w:left w:val="single" w:sz="12" w:space="8" w:color="888888"/></w:pBdr><w:rPr><w:color w:val="555555"/></w:rPr></w:pPr></w:p>';
+          out += ooxmlBlocksFromNode(n, mediaRels);
+        } else if (tag === 'pre') {
+          var lines = (n.textContent || '').replace(/\r/g, '').split('\n');
+          for (var ln = 0; ln < lines.length; ln++) {
+            var line = lines[ln];
+            out += '<w:p><w:r><w:rPr><w:rFonts w:ascii="Consolas" w:eastAsia="Microsoft YaHei" w:hAnsi="Consolas"/></w:rPr><w:t xml:space="preserve">' +
+              escapeXml(line) + '</w:t></w:r></w:p>';
+          }
+        } else if (tag === 'hr') {
+          out += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="BBBBBB"/></w:pBdr></w:pPr></w:p>';
+        } else if (tag === 'figure' || tag === 'figcaption' || tag === 'video' || tag === 'audio') {
+          // figure 走递归（figcaption 作为段落，figure 包含的 img 走块级）
+          out += ooxmlBlocksFromNode(n, mediaRels);
+        } else if (tag === 'noscript' || tag === 'script' || tag === 'style' || tag === 'link' || tag === 'meta') {
+          // 交互/非展示元素直接跳过
+          continue;
+        } else {
+          // 其余未知元素：先尝试作为内联段落，如果内部含有块再递归块展开
+          var inner = '';
+          var anyBlockInside = false;
+          for (var z = 0; z < n.children.length; z++) {
+            var zk = n.children[z].tagName.toLowerCase();
+            if (/^(p|div|section|article|h[1-6]|ul|ol|table|pre|blockquote|img|figure)$/.test(zk)) { anyBlockInside = true; break; }
+          }
+          if (anyBlockInside) {
+            out += ooxmlBlocksFromNode(n, mediaRels);
+          } else {
+            inner = ooxmlInlineList(n.childNodes, mediaRels, {});
+            if (inner) out += '<w:p>' + inner + '</w:p>';
+          }
+        }
+      }
+      return out;
+    }
+    function htmlToOoxmlBody(safeHtml, mediaRels) {
+      var wrap = document.createElement('div');
+      try { wrap.innerHTML = safeHtml; } catch (_e) { return ''; }
+      return ooxmlBlocksFromNode(wrap, mediaRels);
+    }
+    // 从已经用户验证可用的「导出 HTML」完整文档里，取出正文内容（保证无 MD 原始标记、标题/段落/图片结构与 HTML 导出一致）。
+    // 这是 DOCX 内容的权威来源，避免了使用 combined() 在模板失败时产生的 #标题# 这类 MD 残留。
+    function getExportDocxBody() {
+      var full = exportFullHtml(); if (!full) return '';
+      try {
+        var host = document.implementation.createHTMLDocument('');
+        host.documentElement.innerHTML = full;
+        var main = host.getElementById('jz-export-main');
+        if (!main) return full; // 退化：取不到主容器就用完整串，保证不抛
+        return main.innerHTML;
+      } catch (_e) { return full; }
+    }
+    function makeDocxOOXML(innerHtml, docTitle) {
+      // 1. 先图片全量 base64 内嵌（解决微信防盗链导致 Word/WPS 无图）
+      return inlineImagesInHtml(innerHtml).then(function (safeHtml) {
+        var mediaRels = [];
+        var bodyXml = htmlToOoxmlBody(safeHtml, mediaRels);
+        var title = escapeXml(String(docTitle || '未命名文章'));
+        // 2. 组装 OOXML（先过滤损坏媒体 + 统一扩展名，避免 Word 判文件损坏）
+        function normalizeExt(ext) {
+          // WPS/Word 兼容：jpeg → jpg；其它别名统一为常见 OOXML 可识别扩展名
+          var e = String(ext || 'png').toLowerCase().replace(/\./g, '');
+          if (e === 'jpeg' || e === 'jpg' || e === 'jpe') return { ext: 'jpg',  mime: 'image/jpeg' };
+          if (e === 'png') return { ext: 'png', mime: 'image/png' };
+          if (e === 'gif') return { ext: 'gif', mime: 'image/gif' };
+          if (e === 'bmp') return { ext: 'bmp', mime: 'image/bmp' };
+          if (e === 'webp') return { ext: 'webp', mime: 'image/webp' };
+          if (e === 'tif' || e === 'tiff') return { ext: 'tif', mime: 'image/tiff' };
+          return { ext: 'png', mime: 'image/png' };
+        }
+        // 清洗并重新编号 mediaRels（跳过空内容、b64 损坏等无效图，统一扩展名，并同步替换 document.xml 中的 drawing 引用）
+        var cleanRels = [];
+        for (var _vi = 0; _vi < mediaRels.length; _vi++) {
+          var oldEntry = mediaRels[_vi];
+          if (!oldEntry || !oldEntry.b64) continue;
+          var cleanB64 = String(oldEntry.b64).replace(/[^A-Za-z0-9+/=]/g, '');
+          var pad = (4 - (cleanB64.length % 4)) % 4;
+          if (pad) cleanB64 += '==='.slice(0, pad);
+          if (cleanB64.length === 0) continue;
+          var bytes;
+          try { bytes = b64ToUint8(cleanB64); } catch (_vb) { continue; }
+          if (!bytes || bytes.length < 16) continue; // 小于 16 字节视为无效图（可能是空白占位损坏）
+          var norm = normalizeExt(oldEntry.ext);
+          var newIdx = cleanRels.length + 1;
+          var newId = 'rIdImg' + newIdx;
+          cleanRels.push({
+            oldId: oldEntry.id,
+            newId: newId,
+            target: newIdx + '.' + norm.ext,
+            ext: norm.ext,
+            mime: norm.mime,
+            b64: cleanB64,
+            bytes: bytes
+          });
+        }
+        // 同步替换 bodyXml 里对 rIdImgN 的引用为新编号（如果因过滤导致跳号，仍能正确映射）
+        for (var _vi2 = 0; _vi2 < cleanRels.length; _vi2++) {
+          var _cr = cleanRels[_vi2];
+          if (_cr.oldId && _cr.oldId !== _cr.newId) {
+            try {
+              var _re1 = new RegExp('r:embed="' + _cr.oldId.replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1') + '"', 'g');
+              bodyXml = bodyXml.replace(_re1, 'r:embed="' + _cr.newId + '"');
+              var _re2 = new RegExp('name="' + ('Image' + ((_cr.oldId || '').replace(/\D/g, ''))) + '"', 'g');
+              bodyXml = bodyXml.replace(_re2, 'name="Image' + _cr.newIdx + '"');
+              var _re3 = new RegExp('id="' + ((_cr.oldId || '').replace(/\D/g, '')) + '" name="Image' + ((_cr.oldId || '').replace(/\D/g, '')) + '"', 'g');
+              bodyXml = bodyXml.replace(_re3, 'id="' + (2048 + _cr.newIdx) + '" name="Image' + _cr.newIdx + '"');
+            } catch (_reerr) {}
+          }
+        }
+        // Content_Types: 声明扩展名默认类型
+        var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>';
+        var seenExt2 = {};
+        for (var e3 = 0; e3 < cleanRels.length; e3++) {
+          var ex3 = cleanRels[e3].ext;
+          var mi3 = cleanRels[e3].mime;
+          if (!seenExt2[ex3]) { seenExt2[ex3] = 1; contentTypes += '<Default Extension="' + ex3 + '" ContentType="' + mi3 + '"/>'; }
+        }
+        contentTypes += '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+          '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+          '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
+          '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
+          '</Types>';
+        var rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>' +
+          '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>' +
+          '</Relationships>';
+        var mainBodies = '';
+        if (title) mainBodies += '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">' + title + '</w:t></w:r></w:p><w:p/>';
+        mainBodies += bodyXml;
+        var documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+          mainBodies +
+          '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>' +
+          '</w:body></w:document>';
+        var docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rIdStyle" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+        for (var r3 = 0; r3 < cleanRels.length; r3++) {
+          docRels += '<Relationship Id="' + cleanRels[r3].newId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + cleanRels[r3].target + '"/>';
+        }
+        docRels += '</Relationships>';
+        var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+          '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="28"/></w:rPr></w:style>' +
+          '</w:styles>';
+        var d = new Date(); var iso = d.toISOString();
+        var coreXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+          '<dc:creator>瑾之笺</dc:creator><cp:lastModifiedBy>瑾之笺</cp:lastModifiedBy><dc:title>' + title + '</dc:title>' +
+          '<dcterms:created xsi:type="dcterms:W3CDTF">' + iso + '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' + iso + '</dcterms:modified></cp:coreProperties>';
+        var appXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>瑾之笺</Application></Properties>';
+        // 3. 打包
+        return new Promise(function (resolve, reject) {
+          if (!window.JSZip) { reject(new Error('JSZip 未加载。')); return; }
+          try {
+            var zip = new window.JSZip();
+            zip.file('[Content_Types].xml', contentTypes);
+            zip.folder('_rels').file('.rels', rootRels);
+            zip.folder('word').file('document.xml', documentXml);
+            zip.folder('word').file('styles.xml', stylesXml);
+            zip.folder('word/_rels').file('document.xml.rels', docRels);
+            if (cleanRels.length) {
+              var mediaFolder = zip.folder('word/media');
+              for (var m3 = 0; m3 < cleanRels.length; m3++) {
+                mediaFolder.file(cleanRels[m3].target, cleanRels[m3].bytes);
+              }
+            }
+            zip.folder('docProps').file('core.xml', coreXml);
+            zip.folder('docProps').file('app.xml', appXml);
+            zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' })
+              .then(function (blob) { resolve(blob); }).catch(function (e) { reject(e); });
+          } catch (e_zip) { reject(e_zip); }
+        });
+      });
+    }
+
+    panel.querySelector('#jz-export-docx').onclick = function () {
+      var full = exportFullHtml(); if (!full) return;
+      var themeLabel = (themeSel.options[themeSel.selectedIndex] || {}).textContent || themeName;
+      var baseName = safeFileName(panel.querySelector('#jz-title').value || (files[0] && files[0].title) || '未命名文章');
+      var filename = baseName + '-' + themeLabel + '.docx';
+      var body = getExportDocxBody(); if (!body) { status('没有可导出的正文内容。', true); return; }
+      status('正在生成 Word（DOCX）… 正在内嵌图片并排版，图片多时请耐心等候。');
+      makeDocxOOXML(body, baseName)
+        .then(function (blob) {
+          try {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click();
+            setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+            toast('📃 已导出：' + filename, '#00A86B');
+            status('已导出 Word：' + filename + '（图片已完全内嵌，MS Word 可直接秒开不联网）');
+          } catch (e_dl) {
+            toast('❌ 下载失败：' + (e_dl && e_dl.message || e_dl), '#d9480f');
+            status('导出 Word 失败：' + (e_dl && e_dl.message || e_dl), true);
+          }
+        })
+        .catch(function (e_docx) {
+          console.error('[瑾之笺] DOCX 导出失败:', e_docx);
+          toast('❌ 导出 Word 失败：' + (e_docx && e_docx.message || e_docx), '#d9480f');
+          status('导出 Word 失败：' + (e_docx && e_docx.message || e_docx), true);
+        });
+    };
+
+    // ==== 抓取当前公众号文章 ====
+    function findArticleContainer() {
+      // 按优先级找微信文章正文容器
+      var els = document.querySelectorAll('#js_content, #js_content_wrapper, .rich_media_content, .blog-article-content, .article-content');
+      for (var i = 0; i < els.length; i++) {
+        if (els[i] && els[i].children.length >= 2) return els[i];
+      }
+      return null;
+    }
+    function getArticleTitle() {
+      var el = document.querySelector('#activity-name, .rich_media_title, .og-pages-title, h1.js_title');
+      if (el) return (el.textContent || '').trim();
+      return document.title.replace(/_微信公众号文章$/, '').replace(/[-_].*$/, '').trim() || '公众号文章';
+    }
+    function pickArticleImages(container) {
+      var imgs = container.querySelectorAll('img');
+      for (var j = 0; j < imgs.length; j++) {
+        var im = imgs[j];
+        // 微信懒加载图片：data-src 存真实地址，src 常是占位符
+        var ori = (im.getAttribute('data-src') || '').trim();
+        if (!ori) {
+          // 部分极端情况用 data-original / src 延迟
+          ori = (im.getAttribute('data-original') || '').trim();
+        }
+        var HTTP = /^(https?:)?\/\//i;
+        if (HTTP.test(ori)) {
+          var cur = im.getAttribute('src') || '';
+          // 当前 src 为空、是 data: 占位（gif/svg/base64）或 file 占位 → 用真实地址
+          var isPlaceholder = !cur || cur.indexOf('data:') === 0 || /^(https?:)?\/\//i.test(cur) === false;
+          if (isPlaceholder) {
+            try { im.setAttribute('src', ori); } catch (_) {}
+          }
+        }
+        // 清掉懒加载钩子，避免后续被 SPA 改回占位
+        try { im.removeAttribute('data-src'); im.removeAttribute('data-original'); } catch (_) {}
+      }
+    }
+    function cleanupArticle(container) {
+      // 移除样式/脚本/空元素，保留下方正文核心
+      var css = container.querySelectorAll('script, style, .js_share_btn, .js_pc_qr_code, .js_readmore, .rich_media_area_title');
+      for (var i = css.length - 1; i >= 0; i--) { try { css[i].parentNode && css[i].parentNode.removeChild(css[i]); } catch (_) {} }
+      // 移除纯空节点
+      var els = container.querySelectorAll('p, span, div, section');
+      for (var k = els.length - 1; k >= 0; k--) {
+        var e = els[k];
+        if (e.children.length === 0 && !e.textContent.trim() && !e.innerHTML.trim()) {
+          try { e.parentNode && e.parentNode.removeChild(e); } catch (_) {}
+        }
+      }
+      return container.cloneNode(true);
+    }
+    // 抓取文章 → 保留段落结构与顺序的 Markdown 纯文本（不被折叠成单行）
+    function articleToMarkdownText(root) {
+      var clone = root.cloneNode(true);
+      // 块级元素末尾追加空行，<br>替换为换行，保留段落划分
+      var blocks = clone.querySelectorAll('p, div, section, article, h1, h2, h3, h4, h5, h6, li, blockquote, pre, tr');
+      for (var i = 0; i < blocks.length; i++) {
+        // 只在极致简单没有内联文本节点相邻的块末尾补换行，避免把 span 字打断
+        blocks[i].appendChild(document.createTextNode('\n'));
+        blocks[i].appendChild(document.createTextNode('\n'));
+      }
+      var brs = clone.querySelectorAll('br');
+      for (var j = 0; j < brs.length; j++) {
+        try { brs[j].parentNode.replaceChild(document.createTextNode('\n'), brs[j]); } catch (_) {}
+      }
+      // 表格 → Markdown 表格语法（微信文章里常见的 Excel 表格）
+      var tables = clone.querySelectorAll('table');
+      for (var t = 0; t < tables.length; t++) {
+        var tbl = tables[t];
+        var rows = tbl.querySelectorAll('tr');
+        if (!rows.length) continue;
+        var out = ['\n'];
+        for (var r = 0; r < rows.length; r++) {
+          var cells = rows[r].querySelectorAll('th, td');
+          var line = '| ' + Array.prototype.map.call(cells, function (cell) {
+            return (cell.textContent || '').replace(/[ \t\u3000]+/g, ' ').replace(/\s*\n\s*/g, ' ').trim();
+          }).join(' | ') + ' |';
+          out.push(line);
+          if (r === 0) {
+            // 分隔行：表头下一行加分隔符
+            var sep = '|' + Array.prototype.map.call(cells, function () { return ' --- '; }).join('|') + '|';
+            out.push(sep);
+          }
+        }
+        out.push('\n');
+        var holder = document.createElement('span');
+        holder.textContent = out.join('\n');
+        try { tbl.parentNode.replaceChild(holder, tbl); } catch (_) {}
+      }
+      // 图片 → Markdown 图片语法（让导出的 .md 保留图片引用，不含则删掉纯装饰图）
+      var pics = clone.querySelectorAll('img');
+      for (var p = 0; p < pics.length; p++) {
+        var im = pics[p];
+        var imgSrc = (im.getAttribute('src') || im.getAttribute('data-src') || '').trim();
+        if (imgSrc) {
+          var imgAlt = (im.getAttribute('alt') || '图片').replace(/[\[\(\)\n\r]/g, '').trim() || '图片';
+          var imgHolder = document.createElement('span');
+          imgHolder.textContent = '\n\n![' + imgAlt + '](' + imgSrc + ')\n\n';
+          try { im.parentNode.replaceChild(imgHolder, im); } catch (_) {}
+        } else {
+          try { im.parentNode.removeChild(im); } catch (_) {}
+        }
+      }
+      var text = (clone.textContent || '')
+        .replace(/[ \t\u3000]+/g, ' ')       // 压缩行内多余空格，保留换行
+        .replace(/ *([\r\n])+ */g, '$1')     // 清除换行旁的多余空格
+        .replace(/\n{3,}/g, '\n\n')          // 多空行折叠为段落间隔
+        .trim();
+      return text;
+    }
+
+    panel.querySelector('#jz-capture').onclick = function () {
+      try {
+        // 抓文章前先清空旧列表（避免多份内容被一起导出——抓文章几乎都是单份需求）
+        if (files.length) { files.length = 0; panel.querySelector('#jz-title').value = ''; }
+        var container = findArticleContainer();
+        if (!container) {
+          toast('❌ 未识别到公众号文章正文', '#d9480f');
+          status('未识别到当前页为公众号文章正文。请确认你正打开的是文章阅读页（mp.weixin.qq.com/s/...）。', true);
+          return;
+        }
+        pickArticleImages(container);
+        var clone = cleanupArticle(container);
+        var html = clone.innerHTML || '';
+        var rawText = articleToMarkdownText(clone);
+        if (!html || !rawText) {
+          toast('❌ 文章正文为空', '#d9480f');
+          status('识别到正文容器但内容为空，无法抓取。', true);
+          return;
+        }
+        var title = getArticleTitle();
+        // 抓取内容以伪文件项加入列表（file 需有 name 供 renderList 显示）
+        files.push({
+          file: { name: title, title: title },
+          html: html,
+          rawText: rawText,
+          title: title,
+          kind: 'capture',
+          captured: true
+        });
+        var titleEl = panel.querySelector('#jz-title');
+        if (!titleEl.value) titleEl.value = title;
+        renderList();
+        toast('✅ 已抓取文章：' + title, '#00A86B');
+        status('已抓取「' + title + '」，文本 ' + rawText.length + ' 字。可点击 导出HTML/PDF/MD。');
+      } catch (e_cap) {
+        console.error('[瑾之笺] 抓取文章异常:', e_cap);
+        toast('❌ 抓取失败：' + (e_cap && e_cap.message || e_cap), '#d9480f');
+        status('抓取异常：' + (e_cap && e_cap.message || e_cap), true);
+      }
     };
 
     panel.querySelector('#jz-insert').onclick = function () {
@@ -793,6 +1710,16 @@
         toast('⚠️ ' + (r.reason || '插入失败'), '#d9480f');
         status('插入失败：' + (r.reason || '未知错误'), true);
       }
+    };
+
+    // ==== 清空文件/抓取列表 ====
+    panel.querySelector('#jz-clear-list').onclick = function () {
+      if (!files.length) { status('列表已是空的。', true); return; }
+      files.length = 0;
+      panel.querySelector('#jz-title').value = '';
+      renderList();
+      toast('🗑 已清空列表', '#00A86B');
+      status('文件和抓取内容已清空。可重新拖入文件或抓取文章。');
     };
 
     // ==== 推送前安全检查（QS.securityCheck 不存在时跳过） ====
