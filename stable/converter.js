@@ -181,19 +181,20 @@
     });
   }
 
-  // 把段落按 <br> 切成「逻辑行」，对「粗体标签 + 冒号 + 值」的连续兄弟行做冒号对齐，
-  // 保证导入后预览里 **来源**： **原文链接**： **发布时间**： **整理说明**： 的冒号在同一列，
-  // 与 md 源文件中的「每行一个键值对」结构完全一致。
+  // 把段落按 <br> 切成「逻辑行」，对「粗体标签 + 冒号 + 值」的键值对块做排版：
+  //   1. 标签保持左对齐（不强加右对齐/固定宽度），冒号紧跟标签同一行；
+  //   2. 若是超长无空格的值（如「原文链接」的长 URL），在冒号后强制换行，把值落到下一行；
+  // 与 md 源文件「每行一个键值对」的结构保持一致，且不会被长链接挤坏。
   function alignKeyValueLines(root) {
     try {
       var paragraphs = root.querySelectorAll('p');
       for (var px = 0; px < paragraphs.length; px++) {
         var p = paragraphs[px];
-        // 先把 p 内部按 <br> 切成多行 node 组，识别出每行的第一个 <strong>/<b> 标签
+        var kids = p.childNodes;
+        // 按 <br> 切成逻辑行
         var lines = [];
         var curLine = [];
         var hasBr = false;
-        var kids = p.childNodes;
         for (var k = 0; k < kids.length; k++) {
           var n = kids[k];
           if (n.nodeType === 1 && n.tagName && n.tagName.toLowerCase() === 'br') {
@@ -203,70 +204,87 @@
         if (curLine.length) lines.push(curLine);
         if (!hasBr || lines.length < 2) continue; // 没有多逻辑行就跳过
 
-        // 收集每行的「首标签文本（去除末尾冒号和空白）」
-        var tagEls = [];
-        var tagTexts = [];
+        // 识别每行行首的 <strong>/<b>（键标签）
+        var heads = [];
         for (var li = 0; li < lines.length; li++) {
-          var line = lines[li];
           var firstStrong = null;
-          for (var li2 = 0; li2 < line.length; li2++) {
-            var node = line[li2];
-            if (node.nodeType === 3) {
-              var txt = (node.nodeValue || '').trim();
-              if (txt.length) break; // 遇到非空文本就终止扫描「行首」
-              continue;
-            }
+          var line = lines[li];
+          for (var j = 0; j < line.length; j++) {
+            var node = line[j];
+            if (node.nodeType === 3) { if ((node.nodeValue || '').trim().length) break; continue; }
             if (node.nodeType !== 1) continue;
-            var t = node.tagName.toLowerCase();
-            if (t === 'strong' || t === 'b') { firstStrong = node; break; }
-            break; // 其他元素出现就不算「首粗体标签」
+            var tt = node.tagName.toLowerCase();
+            if (tt === 'strong' || tt === 'b') { firstStrong = node; break; }
+            break; // 其他元素出现就不算「行首粗体标签」
           }
-          if (!firstStrong) { tagEls.push(null); tagTexts.push(null); continue; }
-          var text = (firstStrong.textContent || '').replace(/[：:]\s*$/g, '').trim();
-          if (!text.length) { tagEls.push(null); tagTexts.push(null); continue; }
-          tagEls.push(firstStrong); tagTexts.push(text);
+          heads.push(firstStrong);
         }
+        // 只有「逻辑行数量 ≥ 2，且粗体标签命中占比 ≥ 60%」才当作键值对块，避免误伤正文段落
+        var hits = 0;
+        for (var h = 0; h < heads.length; h++) if (heads[h]) hits++;
+        if (lines.length < 2 || hits < Math.max(2, Math.ceil(lines.length * 0.6))) continue;
 
-        // 只有「逻辑行数量 ≥ 2，且粗体标签命中占比 ≥ 60%」才认为是键值对，避免误伤正文段落
-        var hitCnt = 0;
-        for (var c1 = 0; c1 < tagEls.length; c1++) if (tagEls[c1]) hitCnt++;
-        if (tagEls.length < 2 || hitCnt < Math.max(2, Math.ceil(tagEls.length * 0.6))) continue;
+        // 键值块段落允许长链接断行，防止 URL 横向溢出
+        p.style.wordBreak = 'break-all';
+        p.style.overflowWrap = 'anywhere';
 
-        // 测量文本宽度，取最大 width（用 em 会受字号/粗体变化影响，直接实测 offsetWidth 更精准；
-        // 如果元素还没进真实 DOM 无法测量，则按字符数估算：中文字符 1em、英文字符 0.55em，
-        // 用当前段落 fontSize 折算成 px，这样 headless 环境也能对齐）
-        var pFS = parseFloat(window.getComputedStyle(p).fontSize || '16') || 16;
-        var maxW = 0;
-        for (var c2 = 0; c2 < tagTexts.length; c2++) {
-          var tx = tagTexts[c2]; if (!tx) continue;
-          var est = 0;
-          for (var ch = 0; ch < tx.length; ch++) { est += (tx.charCodeAt(ch) > 127 ? 1.0 : 0.55); }
-          var w = est * pFS + 12; // 12px 给冒号和一点视觉留白
-          if (w > maxW) maxW = w;
-        }
-        if (maxW < 24) maxW = 24;
-        for (var c3 = 0; c3 < tagEls.length; c3++) {
-          var te = tagEls[c3]; if (!te) continue;
-          // 直接把冒号（如果是 strong 末尾自带的“**标签：**”）或 strong 本身作为对齐目标
-          var colon = '';
-          var sInner = (te.textContent || '');
-          if (/[：:]\s*$/.test(sInner)) colon = (sInner.match(/[：:]\s*$/)[0]);
-          te.style.display = 'inline-block';
-          te.style.width = Math.ceil(maxW) + 'px';
-          te.style.textAlign = 'right';
-          te.style.paddingRight = '2px';
-          te.style.verticalAlign = 'top';
-          // 如果冒号在 strong 外（形式：<strong>标签</strong>：值），把冒号包一个 span 不做任何操作 —
-          // 这不会破坏对齐，因为 strong 的 width 已经保证了标签+冒号整体在同一列。
-          if (!colon && te.nextSibling && te.nextSibling.nodeType === 3) {
-            var trailing = (te.nextSibling.nodeValue || '');
-            if (/^\s*[：:]/.test(trailing)) {
-              // do nothing；冒号已经在 strong 外面紧跟，视觉同样对齐。
-            }
+        // 对每一行：标签左对齐；若值为超长无空格串则冒号后断行
+        for (var i2 = 0; i2 < lines.length; i2++) {
+          var head = heads[i2];
+          if (!head) continue;
+          // 左对齐：清除可能的固定宽度/右对齐，仅保留 inline-block + 间距，冒号自然紧跟标签
+          head.style.display = 'inline-block';
+          head.style.paddingRight = '4px';
+          head.style.width = '';
+          head.style.textAlign = '';
+          head.style.verticalAlign = '';
+
+          // 拼接该行「标签之后」的值文本
+          var value = '';
+          var after = head.nextSibling;
+          while (after && !(after.nodeType === 1 && after.tagName && after.tagName.toLowerCase() === 'br')) {
+            if (after.nodeType === 3) value += (after.nodeValue || '');
+            else { try { value += (after.textContent || ''); } catch (_e2) { } }
+            after = after.nextSibling;
           }
+          value = (value || '').trim();
+          // 超长无空格值（如 URL）→ 在冒号后断行，值移到下一行
+          var isLong = /^https?:\/\//i.test(value) || /\S{55,}/.test(value);
+          if (isLong) ensureBreakValueAfterHead(p, head);
         }
       }
-    } catch (_e) { /* 对齐失败不影响正文渲染，静默 */ }
+    } catch (_e) { /* 排版失败不影响正文渲染，静默 */ }
+  }
+
+  // 在「标签后的冒号」之后插入 <br>，把超长值推到下一行；冒号仍与标签同一行。
+  function ensureBreakValueAfterHead(p, head) {
+    try {
+      var n = head.nextSibling;
+      while (n && !(n.nodeType === 1 && n.tagName && n.tagName.toLowerCase() === 'br')) {
+        if (n.nodeType === 3) {
+          var s = n.nodeValue || '';
+          var m = /^([：:])(.*)$/.exec(s);
+          if (m && s.trim().length) {
+            // 冒号与值在同一文本节点（形如「：https://… 」）：拆成 冒号 + <br> + 值
+            var br = document.createElement('br');
+            p.insertBefore(br, n.nextSibling);
+            n.nodeValue = m[1];
+            if (m[2].length) {
+              var valueNode = document.createTextNode(m[2]);
+              p.insertBefore(valueNode, br.nextSibling);
+            }
+            return;
+          }
+          if (s.trim().length) {
+            // 冒号已在 strong 内部，此后是纯值：直接在值前插 <br>
+            var br2 = document.createElement('br');
+            p.insertBefore(br2, n);
+            return;
+          }
+        }
+        n = n.nextSibling;
+      }
+    } catch (_e3) { /* 忽略 */ }
   }
 
   function wechatify(root, theme) {
