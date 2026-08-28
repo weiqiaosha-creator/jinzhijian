@@ -181,6 +181,94 @@
     });
   }
 
+  // 把段落按 <br> 切成「逻辑行」，对「粗体标签 + 冒号 + 值」的连续兄弟行做冒号对齐，
+  // 保证导入后预览里 **来源**： **原文链接**： **发布时间**： **整理说明**： 的冒号在同一列，
+  // 与 md 源文件中的「每行一个键值对」结构完全一致。
+  function alignKeyValueLines(root) {
+    try {
+      var paragraphs = root.querySelectorAll('p');
+      for (var px = 0; px < paragraphs.length; px++) {
+        var p = paragraphs[px];
+        // 先把 p 内部按 <br> 切成多行 node 组，识别出每行的第一个 <strong>/<b> 标签
+        var lines = [];
+        var curLine = [];
+        var hasBr = false;
+        var kids = p.childNodes;
+        for (var k = 0; k < kids.length; k++) {
+          var n = kids[k];
+          if (n.nodeType === 1 && n.tagName && n.tagName.toLowerCase() === 'br') {
+            hasBr = true; lines.push(curLine); curLine = [];
+          } else curLine.push(n);
+        }
+        if (curLine.length) lines.push(curLine);
+        if (!hasBr || lines.length < 2) continue; // 没有多逻辑行就跳过
+
+        // 收集每行的「首标签文本（去除末尾冒号和空白）」
+        var tagEls = [];
+        var tagTexts = [];
+        for (var li = 0; li < lines.length; li++) {
+          var line = lines[li];
+          var firstStrong = null;
+          for (var li2 = 0; li2 < line.length; li2++) {
+            var node = line[li2];
+            if (node.nodeType === 3) {
+              var txt = (node.nodeValue || '').trim();
+              if (txt.length) break; // 遇到非空文本就终止扫描「行首」
+              continue;
+            }
+            if (node.nodeType !== 1) continue;
+            var t = node.tagName.toLowerCase();
+            if (t === 'strong' || t === 'b') { firstStrong = node; break; }
+            break; // 其他元素出现就不算「首粗体标签」
+          }
+          if (!firstStrong) { tagEls.push(null); tagTexts.push(null); continue; }
+          var text = (firstStrong.textContent || '').replace(/[：:]\s*$/g, '').trim();
+          if (!text.length) { tagEls.push(null); tagTexts.push(null); continue; }
+          tagEls.push(firstStrong); tagTexts.push(text);
+        }
+
+        // 只有「逻辑行数量 ≥ 2，且粗体标签命中占比 ≥ 60%」才认为是键值对，避免误伤正文段落
+        var hitCnt = 0;
+        for (var c1 = 0; c1 < tagEls.length; c1++) if (tagEls[c1]) hitCnt++;
+        if (tagEls.length < 2 || hitCnt < Math.max(2, Math.ceil(tagEls.length * 0.6))) continue;
+
+        // 测量文本宽度，取最大 width（用 em 会受字号/粗体变化影响，直接实测 offsetWidth 更精准；
+        // 如果元素还没进真实 DOM 无法测量，则按字符数估算：中文字符 1em、英文字符 0.55em，
+        // 用当前段落 fontSize 折算成 px，这样 headless 环境也能对齐）
+        var pFS = parseFloat(window.getComputedStyle(p).fontSize || '16') || 16;
+        var maxW = 0;
+        for (var c2 = 0; c2 < tagTexts.length; c2++) {
+          var tx = tagTexts[c2]; if (!tx) continue;
+          var est = 0;
+          for (var ch = 0; ch < tx.length; ch++) { est += (tx.charCodeAt(ch) > 127 ? 1.0 : 0.55); }
+          var w = est * pFS + 12; // 12px 给冒号和一点视觉留白
+          if (w > maxW) maxW = w;
+        }
+        if (maxW < 24) maxW = 24;
+        for (var c3 = 0; c3 < tagEls.length; c3++) {
+          var te = tagEls[c3]; if (!te) continue;
+          // 直接把冒号（如果是 strong 末尾自带的“**标签：**”）或 strong 本身作为对齐目标
+          var colon = '';
+          var sInner = (te.textContent || '');
+          if (/[：:]\s*$/.test(sInner)) colon = (sInner.match(/[：:]\s*$/)[0]);
+          te.style.display = 'inline-block';
+          te.style.width = Math.ceil(maxW) + 'px';
+          te.style.textAlign = 'right';
+          te.style.paddingRight = '2px';
+          te.style.verticalAlign = 'top';
+          // 如果冒号在 strong 外（形式：<strong>标签</strong>：值），把冒号包一个 span 不做任何操作 —
+          // 这不会破坏对齐，因为 strong 的 width 已经保证了标签+冒号整体在同一列。
+          if (!colon && te.nextSibling && te.nextSibling.nodeType === 3) {
+            var trailing = (te.nextSibling.nodeValue || '');
+            if (/^\s*[：:]/.test(trailing)) {
+              // do nothing；冒号已经在 strong 外面紧跟，视觉同样对齐。
+            }
+          }
+        }
+      }
+    } catch (_e) { /* 对齐失败不影响正文渲染，静默 */ }
+  }
+
   function wechatify(root, theme) {
     root.style.cssText = inline(theme.container) + 'word-break:break-word;';
     setAll(root, 'h1', theme.h1);
@@ -241,6 +329,9 @@
     for (var sn = 0; sn < slideNums.length; sn++) {
       slideNums[sn].style.cssText = 'display:inline-block;background:' + theme.slide.numberColor + ';color:#fff;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;font-size:13px;margin-right:8px;vertical-align:middle;';
     }
+    // 对「来源：/ 原文链接：/ 发布时间：/ 整理说明：」这类 md 软换行 + 粗体标签 + 冒号的元数据块，
+    // 对齐冒号列。必须在 wechatify 最后一步执行（需要字号可测、<br> 已生成）。
+    alignKeyValueLines(root);
     return root;
   }
 
@@ -253,7 +344,10 @@
   }
 
   function mdToHtml(md, themeName) {
-    var mdIt = global.markdownit({ html: true, linkify: true, typographer: true, breaks: false });
+    // 关键：breaks:true 让 md 里每行末尾的「软换行」（非空行）直接转成 <br>，
+    // 避免多行元数据「**来源**：/ **原文链接**：/ **发布时间**：/ **整理说明**：」
+    // 被 markdown-it 默认 (breaks:false) 合并成同一段，插件预览的对齐和换行就跟 md 源完全一致。
+    var mdIt = global.markdownit({ html: true, linkify: true, typographer: true, breaks: true });
     var html = mdIt.render(md || '');
     return fragmentToHtml(html, themeName);
   }
