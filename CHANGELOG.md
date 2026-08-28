@@ -1,8 +1,19 @@
-﻿# 更新日志 (Changelog)
+# 更新日志 (Changelog)
 
 本文件记录「瑾之笺」各版本的功能变更。
 版本留档规则：每个稳定版都会归档到 `releases/<版本>/`（完整可加载目录），
 同时打 git tag `v<版本>`。最新版始终位于 `stable/`，旧版本不会覆盖、可随时回退使用。
+
+## [v2.0.18] - 2026-08-29
+### 修复
+- 彻底修复「插入后标题同步到公众号标题框」仍失败的问题：公众号新版编辑器（ProseMirror）的文章标题框
+  是一个**可见的** `.ProseMirror` 可编辑 div（外层容器 class 含 `title-editor__input`，本身没有
+  placeholder 属性）。旧逻辑只能匹配到同名的**隐藏** `textarea#title`，把标题填进了隐藏字段，
+  可见标题框从未更新，导致「标题一直同步不上」。
+- 新增 `findProseMirrorTitle()`：优先定位可见标题框（contenteditable + 为空 + 位于页面上部 +
+  宽 >200 / 高 15~80px + 祖先容器 class 含 title 强加分），并能自动跳过正文/作者等其它编辑器。
+- 对可见标题框采用 `focus + selectAllChildren + execCommand('insertText')` 注入——这是 ProseMirror
+  认账、能让界面立即更新的唯一方式；同时回写隐藏的 `textarea#title` 供后端读取。已在真实公众号后台验证。
 
 ## [v2.0.17] - 2026-08-28
 ### 修复
