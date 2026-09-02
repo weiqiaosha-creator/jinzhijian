@@ -326,6 +326,7 @@
           f.text().then(function (t) { item.rawText = t; }).catch(function () {});
         }
         files.push(item);
+        console.log('[瑾之笺] addFiles:', f.name, 'ext=' + ext, 'files.length=' + files.length);
       });
       convertAll();
     }
@@ -356,8 +357,9 @@
     }
 
     function convertAll() {
-      var ps = files.map(function (it) {
-        if (it.html || it.error) return Promise.resolve();
+      console.log('[瑾之笺] convertAll 启动, files.length=' + files.length, files.map(function (f) { return f.file.name; }));
+      var ps = files.map(function (it, idx) {
+        if (it.html || it.error) { console.log('[瑾之笺] 文件 ' + idx + ' 已有结果，跳过'); return Promise.resolve(); }
         var hasFull = window.QSConverter && window.QSConverter.parseFile;
         var runner = hasFull
           ? window.QSConverter.parseFile(it.file, themeName)
@@ -365,17 +367,25 @@
         return runner.then(function (r) {
           it.html = r.html;
           it.title = r.title;
+          console.log('[瑾之笺] 文件 ' + idx + ' 转换成功, ' + it.file.name + ', html长度=' + (r.html || '').length + ', title=' + r.title);
           if (r.warnings && r.warnings.length) it.warnings = r.warnings; else delete it.warnings;
           // ⚠ 修复：同步 degraded 标记（缺这个降级提示永远不显示）
           if (r.degraded) it.degraded = true; else delete it.degraded;
-        }).catch(function (e) { it.error = (e && e.message) || String(e); });
+        }).catch(function (e) { it.error = (e && e.message) || String(e); console.log('[瑾之笺] 文件 ' + idx + ' 转换失败:', it.file.name, it.error); });
       });
-      Promise.all(ps).then(renderList).catch(function (e) {
+      Promise.all(ps).then(function () {
+        console.log('[瑾之笺] 全部转换完成, files数组状态:', files.map(function (f) { return { name: f.file.name, html: !!f.html, htmlLen: (f.html || '').length, err: f.error }; }));
+        renderList();
+      }).catch(function (e) {
         console.error('[瑾之笺] convertAll 异常:', e);
         status('转换流程异常: ' + (e && e.message || e), true);
       });
     }
-    function combined() { return files.filter(function (i) { return i.html; }).map(function (i) { return i.html; }).join(''); }
+    function combined() {
+      var filtered = files.filter(function (i) { return i.html; });
+      console.log('[瑾之笺] combined 被调, files总长度=' + files.length + ', 有html的=' + filtered.length, files.map(function (f) { return { name: f.file.name, html: !!f.html, htmlLen: (f.html || '').length, err: f.error }; }));
+      return filtered.map(function (i) { return i.html; }).join('');
+    }
     function renderList() {
       var ul = panel.querySelector('#jz-list'); ul.innerHTML = '';
       var degraded = false;

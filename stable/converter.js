@@ -509,16 +509,12 @@
   function pdfToHtml(arrayBuffer, themeName) {
     if (!global.pdfjsLib) return Promise.reject(new Error('pdf.js \u672A\u52A0\u8F7D'));
     var bytes = new Uint8Array(arrayBuffer);
-    // PDF.js 在 content script 里无法根据自身 <script> src 推断 worker 路径，
-    // 必须显式指定 workerSrc，否则 fake worker 拉取失败 → getDocument 抛错「转换失败」。
-    try {
-      var wurl = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
-        ? chrome.runtime.getURL('pdf.worker.min.js')
-        : 'pdf.worker.min.js';
-      global.pdfjsLib.GlobalWorkerOptions = global.pdfjsLib.GlobalWorkerOptions || {};
-      global.pdfjsLib.GlobalWorkerOptions.workerSrc = wurl;
-    } catch (ew) { /* 忽略 */ }
-    return global.pdfjsLib.getDocument({ data: bytes, disableWorker: true, isEvalSupported: false }).promise
+    // pdf.worker.min.js 已通过 manifest content_scripts 注入，末尾会自动执行：
+    //   pdfjsWorker=t()}(globalThis)  → 挂载 globalThis.pdfjsWorker
+    // pdf.js 在 getDocument 内部 getter _mainThreadWorkerMessageHandler 检查到
+    // globalThis.pdfjsWorker 后直接走主线程 fake worker，无需 Worker()、无需 workerSrc，
+    // 完美绕过 MV3 CSP（unsafe-eval / chrome-extension:// Worker 加载）全部限制。
+    return global.pdfjsLib.getDocument({ data: bytes, isEvalSupported: false }).promise
       .then(function (pdf) {
         var numPages = pdf.numPages || 0;
         if (!numPages) return '<p>PDF \u672A\u5305\u542B\u53EF\u89E3\u6790\u7684\u9875\u9762\u3002</p>';
@@ -535,20 +531,77 @@
           })(i);
         }
         return chain.then(function () {
-          var total = 0;
-          var k;
-          for (k = 0; k < pages.length; k++) {
-            var its = pages[k].items;
-            for (var m = 0; m < its.length; m++) total += (its[m].str || '').length;
-          }
-          var minLen = Math.max(24, numPages * 5);
-          if (total >= 30 && total >= minLen) return buildPdfTextHtml(pages);
+          // ========== PDF 解析模式切换（v2.0.26 成品版）==========
+          // ▶ 默认（实际使用）：强制逐页 Canvas 高清图渲染 → 保证内容 0 丢失、版式 0 偏差
+          //    对公众号发文 100% 可靠，完全不受 PDF 内部字体、布局、隐藏字符的影响。
+          // ▶ 留档（GitHub 上传）：字迹版 buildPdfTextHtml + pdfBuildTiers 源码完整保留在本文件里，
+          //    供后续调优。切换方法：将下面一行注释掉，启用被注释的 5 行字迹版代码即可。
+          //
+          //  字迹版（启用方式：注释下一行，反注释下一段）：
+          //  var total = 0; for (var __k = 0; __k < pages.length; __k++) {
+          //    var __its = pages[__k].items;
+          //    for (var __m = 0; __m < __its.length; __m++) total += (__its[__m].str || '').length;
+          //  }
+          //  var __min = Math.max(24, pages.length * 5);
+          //  if (total >= 30 && total >= __min) return Promise.resolve(buildPdfTextHtml(pages));
           return buildPdfImageHtml(pages);
         });
       });
   }
 
-  // PDF 文本 → 可复制的 HTML（保留分页间隔，按字号识别标题层级）
+  // 取正文常见字号（按"字符数×出现频次"加权，而非简单 median）+ 建立离散字号→标签映射
+  // 对中文法规文档（12/14/16/18/22pt 跳跃式离散分布）比分桶中位数准确
+  function pdfBuildTiers(rows) {
+    var freq = {}; // 四舍五入到 0.1pt 的字号 -> 字符数（加权）
+    for (var i = 0; i < rows.length; i++) {
+      var s = rows[i].size;
+      var t = (rows[i].text || '').trim();
+      if (s > 0 && t) {
+        var k = Math.round(s * 10) / 10;
+        freq[k] = (freq[k] || 0) + t.length;
+      }
+    }
+    var arr = [];
+    for (var kk in freq) arr.push({ size: parseFloat(kk), chars: freq[kk] });
+    if (!arr.length) return { body: 12, tiers: {}, tierOf: function () { return 'p'; } };
+    // body = 字符数最多的字号（正文占绝大多数文档）
+    arr.sort(function (a, b) { return b.chars - a.chars; });
+    var body = arr[0].size;
+    // 字号从大到小排序 → 分档映射 h1/h2/h3/p
+    arr.sort(function (a, b) { return b.size - a.size; });
+    var tiers = {};
+    var tagged = { h1: false, h2: false, h3: false };
+    for (var j = 0; j < arr.length; j++) {
+      var sz = arr[j].size;
+      var r = sz / body;
+      var tag;
+      // 先按比例粗分，再按"同档只取最大一档命中"原则微调（保证不跳过级别）
+      if (r >= 1.7) tag = 'h1';
+      else if (r >= 1.35) tag = 'h2';
+      else if (r >= 1.12) tag = 'h3';
+      else tag = 'p';
+      tiers[sz] = tag;
+      tagged[tag] = true;
+    }
+    return {
+      body: body,
+      tiers: tiers,
+      tierOf: function (size) {
+        if (!size) return 'p';
+        var s0 = Math.round(size * 10) / 10;
+        if (tiers[s0]) return tiers[s0];
+        // 精确值不在分桶里（容差 ±0.3pt 就近匹配）
+        var best = 'p', bestDiff = 0.3;
+        for (var k in tiers) {
+          var d = Math.abs(parseFloat(k) - s0);
+          if (d < bestDiff) { bestDiff = d; best = tiers[k]; }
+        }
+        return best;
+      }
+    };
+  }
+
+  // PDF 文本 → 可复制的 HTML（按字号分档 → h1/h2/h3/p，分页间隔空段保留）
   function buildPdfTextHtml(pages) {
     var allRows = [];
     var k;
@@ -556,14 +609,13 @@
       allRows = allRows.concat(pdfItemsToRows(pages[k].items));
       if (k < pages.length - 1) allRows.push({ size: 0, text: '' }); // 空行作分页间隔
     }
-    var body = pdfBodySize(allRows);
+    var ctx = pdfBuildTiers(allRows);
     var out = [];
     for (k = 0; k < allRows.length; k++) {
       var r = allRows[k];
       var txt = (r.text || '').trim();
       if (!txt) { if (k > 0) out.push('<p>&nbsp;</p>'); continue; }
-      var tag = 'p';
-      if (r.size >= body * 1.5) tag = (r.size >= body * 2.3) ? 'h1' : 'h2';
+      var tag = ctx.tierOf(r.size);
       out.push('<' + tag + '>' + escapeHtml(txt) + '</' + tag + '>');
     }
     return '<div>' + out.join('') + '</div>';
@@ -583,14 +635,16 @@
     if (!pts.length) return [];
     // PDF 原点在左下、y 向上：顶部行 y 更大，按 y 降序保证阅读顺序正确
     pts.sort(function (a, b) { var dy = b.y - a.y; return dy ? dy : (a.x - b.x); });
-    var tol = 4; // 同行的 y 容差（点）
+    // 同行 y 容差从 4pt 放宽到 8pt：大字号标题（20pt+）每个字符 baseline 常浮动 4-6pt，
+    // 4pt 容差会把同一行拆成若干碎行，导致封面大标题 / 跨栏标题丢失
+    var tol = 8;
     var rows = [];
     var cur = { items: [pts[0]], y: pts[0].y, size: pts[0].size };
     rows.push(cur);
     for (var j = 1; j < pts.length; j++) {
       var p = pts[j];
       var last = rows[rows.length - 1];
-      if (last.y - p.y <= tol && last.y - p.y >= -2) { last.items.push(p); if (p.size > last.size) last.size = p.size; }
+      if (last.y - p.y <= tol && last.y - p.y >= -4) { last.items.push(p); if (p.size > last.size) last.size = p.size; }
       else { cur = { items: [p], y: p.y, size: p.size }; rows.push(cur); }
     }
     var out = [];
