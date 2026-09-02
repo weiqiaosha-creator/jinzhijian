@@ -4,16 +4,24 @@
 版本留档规则：每个稳定版都会归档到 `releases/<版本>/`（完整可加载目录），
 同时打 git tag `v<版本>`。最新版始终位于 `stable/`，旧版本不会覆盖、可随时回退使用。
 
+## [v2.0.25] - 2026-09-01
+
+### 变更
+- 转换失败时，弹出的提示直接带出**首个具体错误**（`文件名 → 错误详情`），并在 F12 Console 输出 `[瑾之笺] 转换失败明细`，
+  便于直接定位 PDF 转换失败的真正原因（不再只显示泛化的「转换失败」）。
+
 ## [v2.0.24] - 2026-09-01
 
 ### 修复
+
 - 修复 PDF「转换失败」：PDF.js 在 content script 里无法根据自身 `<script>` 推断 worker 路径，
   之前又没显式设置 `workerSrc`，且 `pdf.worker.min.js` 未注册进 `web_accessible_resources`，
   导致 fake worker 拉取被拦 → `getDocument` 抛错 → 插入/上传都提示「转换失败」。
+
 - `converter.js` 现在调用 `chrome.runtime.getURL('pdf.worker.min.js')` 显式指定 workerSrc，
   manifest 的 `web_accessible_resources` 同时注册该工作器文件。
 
-## [v2.0.23] - 2026-09-01
+## \[v2.0.23] - 2026-09-01
 
 ### 修复
 
